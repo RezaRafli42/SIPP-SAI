@@ -37,9 +37,13 @@
                         </div>
                         @if ((Auth::user() && Auth::user()->role === 'Super Admin') || Auth::user()->role === 'Purchasing Logistic Admin')
                             <div class="input-group mb-3">
-                                <button type="button" class="btn btn-success btn-icon-text" data-toggle="modal"
+                                <button type="button" class="btn btn-success btn-icon-text mr-1" data-toggle="modal"
                                     data-target="#addOfficeWarehouseModal">
                                     <i class="mdi mdi-database-plus pr-2"></i>Add Office Warehouse Data
+                                </button>
+                                <button type="button" class="btn btn-primary btn-icon-text" data-toggle="modal"
+                                    data-target="#addOfficeWarehouseModal">
+                                    <i class="mdi mdi-database pr-2"></i>Warehouse Item History
                                 </button>
                             </div>
                         @endif
