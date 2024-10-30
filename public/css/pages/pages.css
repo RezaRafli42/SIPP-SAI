@@ -1,0 +1,672 @@
+.ship-image,
+.item-image,
+.user-image {
+    width: 100px;
+}
+
+.table-responsive thead {
+    position: sticky;
+    top: 0;
+    z-index: 99;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+    width: 12px; /* Lebar scrollbar */
+}
+
+::-webkit-scrollbar-track {
+    background: #ffffff; /* Warna background */
+}
+
+::-webkit-scrollbar-thumb {
+    background-color: #4b49ac; /* Warna thumb */
+    border-radius: 10px; /* Membuat sudut rounded */
+    border: 3px solid white; /* Memberi ruang antara thumb dan track */
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color: #ff0000; /* Warna thumb ketika di-hover */
+}
+/* End Scrollbar */
+td {
+    border-bottom: 1px solid #d1d1d1; /* Darker border for a stronger appearance */
+    text-align: center;
+}
+
+#itemName-list {
+    width: 447px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.purchaseRequestNumber-dropdown {
+    width: 550px;
+}
+
+#purchaseRequest-list {
+    width: 550px;
+    max-height: 100px;
+    overflow-y: auto;
+}
+
+#purchaseOrder-list {
+    width: 729px;
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+#itemName-list-col3 {
+    width: 442px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+#adjustmentItemName-list {
+    width: 363px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+#itemAccount-list {
+    width: 377px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+#adjustmentItemName-list a {
+    color: black !important;
+}
+
+#serviceAccount-list {
+    width: 369px;
+    max-height: 80px;
+    overflow-y: auto;
+}
+
+option,
+select {
+    color: #495057 !important;
+}
+
+.selectize-input {
+    max-height: 12px;
+    overflow-y: auto;
+}
+
+/* Nav Pills */
+.nav-pills .nav-link.active,
+.nav-pills .show > .nav-link {
+    color: #fff !important; /* Warna teks untuk aktif */
+    background-color: #4b49ac !important; /* Warna latar belakang untuk aktif */
+    border-radius: 8px;
+}
+
+.nav-pills .nav-link {
+    color: #0e2238; /* Warna teks untuk tidak aktif */
+    border: none;
+    text-wrap: nowrap;
+    padding: 0.5rem;
+}
+
+.nav-pills .nav-link:hover {
+    color: #ff0000; /* Warna teks untuk hover */
+}
+
+.ship-type {
+    background-color: #4b49ac9e;
+    padding: 5px;
+    margin: 0px;
+}
+/* End Nav Pills */
+
+.form-group {
+    margin-bottom: 1rem !important;
+}
+
+.form-group .col-6,
+.form-group .col-8 {
+    padding: 0 5px !important;
+}
+
+.tes {
+    color: #46a146;
+}
+
+/* Switch */
+.input-group-append-switch {
+    margin: auto;
+}
+
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 56px;
+    height: 30px;
+    margin-bottom: 0 !important;
+    margin-right: 10px;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    -webkit-transition: 0.4s;
+    transition: 0.4s;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 22px;
+    width: 22px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    -webkit-transition: 0.4s;
+    transition: 0.4s;
+}
+
+input:checked + .slider {
+    background-color: #0e2238;
+}
+
+input:focus + .slider {
+    box-shadow: 0 0 1px #0e2238;
+}
+
+input:checked + .slider:before {
+    -webkit-transform: translateX(26px);
+    -ms-transform: translateX(26px);
+    transform: translateX(26px);
+}
+
+.slider.round {
+    border-radius: 5px;
+}
+
+.slider.round:before {
+    border-radius: 3px;
+}
+/* End Switch */
+
+#item-list,
+#service-list {
+    width: 668px;
+}
+
+/* Add PO Modal */
+#supplier-list {
+    /* width: 484px; */
+    width: calc(100% - 10px);
+    max-height: 120px;
+    overflow-y: auto;
+}
+
+#jasa-list {
+    /* width: 484px; */
+    width: calc(100% - 10px);
+    max-height: 120px;
+    overflow-y: auto;
+}
+
+#selectSupplierModal #supplier-list {
+    width: 549px;
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+#item-list .dropdown-item:hover,
+#service-list .dropdown-item:hover,
+#supplier-list .dropdown-item:hover,
+#selectSupplierModal #supplier-list .dropdown-item:hover,
+#jasa-list .dropdown-item:hover,
+option:hover {
+    background-color: #4b49ac;
+    color: white;
+}
+
+#selectDeliveryAddress {
+    border-radius: 7px;
+    width: 200px;
+    float: right;
+}
+
+#selectDeliveryAddress option {
+    background-color: white;
+}
+
+.purchaseRequest-dropdown {
+    width: 533px;
+}
+
+.it-purchaseRequest-dropdown {
+    width: 547px;
+}
+
+.modal-custom {
+    max-width: 1500px !important;
+    overflow-y: auto;
+    margin: auto;
+    margin-top: 20px;
+}
+
+.modal-custom-small {
+    max-width: 800px !important;
+    overflow-y: auto;
+    margin: auto;
+    margin-top: 20px;
+}
+
+.modal-custom-medium {
+    max-width: 1200px !important;
+    overflow-y: auto;
+    margin: auto;
+    margin-top: 20px;
+}
+
+/* #addPurchaseOrdersModal .modal-dialog #temporaryItem {
+    max-height: 200px;
+    overflow-y: auto;
+} */
+
+#addPurchaseOrdersModal .modal-dialog #temporaryItem thead {
+    position: sticky;
+    top: 0;
+    z-index: 99;
+}
+
+.content-wrapper {
+    padding: 1rem;
+}
+
+/* Untuk Chrome, Safari, Edge, Opera */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/* Untuk Firefox */
+input[type="number"] {
+    -moz-appearance: textfield;
+}
+
+.menu-icon {
+    font-size: 1.3rem !important;
+}
+
+/* Inventory Transfers */
+.section-border {
+    border: 3px solid #4b49ac33;
+    padding: 30px 15px 15px; /* Adjust padding to accommodate header */
+    margin-bottom: 20px;
+    border-radius: 5px;
+    position: relative;
+    margin-top: 30px;
+}
+
+.section-border h5 {
+    position: absolute;
+    top: -10px; /* Adjust as needed */
+    left: 20px; /* Match the padding-left of .section-border */
+    background: #fff; /* Same as background of the container */
+    padding: 0 10px;
+    margin: 0;
+    font-weight: bold;
+}
+
+.accordion-header,
+.accordion-item {
+    border: none !important;
+    margin: 5px 0;
+}
+
+.accordion-button {
+    background-color: #4b49ac !important;
+    color: white !important;
+    border-top-left-radius: 0 !important;
+    border-top-right-radius: 15px !important;
+    border-bottom-right-radius: 0 !important;
+    border-bottom-left-radius: 15px !important;
+}
+
+.bg-light-red {
+    background-color: #ffecec !important;
+}
+
+.modal-header {
+    background-color: #4b49ac;
+    color: white;
+    font-weight: bold;
+    border-bottom-left-radius: 15px;
+    border-bottom-right-radius: 15px;
+    margin: -0.8;
+}
+
+.modal .modal-dialog .modal-content .modal-header .close span {
+    color: white;
+    font-weight: bold;
+    font-size: larger;
+}
+
+.card {
+    box-shadow: 10px 10px 28px 0px rgba(0, 0, 0, 0.3);
+    -webkit-box-shadow: 10px 10px 28px 0px rgba(0, 0, 0, 0.3);
+    -moz-box-shadow: 10px 10px 28px 0px rgba(0, 0, 0, 0.3);
+}
+
+/* Preloader */
+.lds-ripple {
+    display: inline-block;
+    position: relative;
+    width: 64px;
+    height: 64px;
+}
+.lds-ripple div {
+    position: absolute;
+    border: 4px solid #3498db;
+    opacity: 1;
+    border-radius: 50%;
+    animation: lds-ripple 1.2s cubic-bezier(0, 0.2, 0.8, 1) infinite;
+}
+.lds-ripple div:nth-child(2) {
+    animation-delay: -0.5s;
+}
+@keyframes lds-ripple {
+    0% {
+        top: 28px;
+        left: 28px;
+        width: 0;
+        height: 0;
+        opacity: 1;
+    }
+    100% {
+        top: 0px;
+        left: 0px;
+        width: 56px;
+        height: 56px;
+        opacity: 0;
+    }
+}
+
+/* ADJUSTMENT SHIP WAREHOUSE */
+@import "compass/css3";
+#adjustmentShipWarehouseModal *,
+#adjustmentShipWarehouseModal *:before,
+#adjustmentShipWarehouseModal *:after {
+    box-sizing: border-box;
+}
+#adjustmentShipWarehouseModal .modal-dialog {
+    min-width: 800px !important;
+    max-width: 800px !important;
+}
+#adjustmentShipWarehouseModal a {
+    text-decoration: none;
+    color: #4b49ac;
+    transition: 0.5s ease;
+}
+#adjustmentShipWarehouseModal a:hover {
+    color: #4b49ac;
+}
+#adjustmentShipWarehouseModal .form {
+    background: rgba(255, 255, 255, 0.9);
+    margin: auto;
+    border-radius: 4px;
+    box-shadow: 0 4px 10px 4px rgba(19, 35, 47, 0.3);
+    padding: 10px !important;
+}
+#adjustmentShipWarehouseModal .tab-group {
+    list-style: none;
+    padding: 0;
+    margin: 0 auto; /* Pastikan ini tetap auto untuk centering */
+    display: flex; /* Gunakan Flexbox */
+    justify-content: center; /* Untuk memusatkan elemen secara horizontal */
+    align-items: center; /* Untuk memusatkan elemen secara vertikal */
+}
+#adjustmentShipWarehouseModal .tab-group li {
+    flex: 1; /* Elemen tab akan memiliki ukuran yang sama */
+}
+#adjustmentShipWarehouseModal .tab-group:after {
+    content: "";
+    display: table;
+    clear: both;
+}
+#adjustmentShipWarehouseModal .tab-group li a {
+    display: block;
+    text-decoration: none;
+    padding: 10px 20px; /* Atur padding agar terlihat baik */
+    background: rgba(160, 179, 176, 0.25);
+    color: #000;
+    text-align: center;
+    cursor: pointer;
+    transition: 0.3s ease;
+    font-weight: bold;
+    border-radius: 0; /* Ini akan menghilangkan radius untuk tab tengah */
+}
+#adjustmentShipWarehouseModal .tab-group li:first-child a {
+    border-top-left-radius: 10px;
+    border-bottom-left-radius: 10px;
+}
+
+#adjustmentShipWarehouseModal .tab-group li:last-child a {
+    border-top-right-radius: 10px;
+    border-bottom-right-radius: 10px;
+}
+
+#adjustmentShipWarehouseModal
+    .tab-group
+    li:not(:first-child):not(:last-child)
+    a {
+    border-radius: 0; /* Tidak ada border-radius untuk elemen di tengah */
+}
+#adjustmentShipWarehouseModal .tab-group li a:hover {
+    background: #4b49ac;
+    color: #fff;
+}
+#adjustmentShipWarehouseModal .tab-group .active a {
+    background: #4b49ac;
+    color: #fff;
+}
+#adjustmentShipWarehouseModal .tab-content {
+    padding: 10px !important;
+}
+#adjustmentShipWarehouseModal .modal-body {
+    padding: 10px !important;
+}
+#adjustmentShipWarehouseModal .tab-content > div:last-child {
+    display: none;
+}
+#adjustmentShipWarehouseModal h1 {
+    text-align: center;
+    color: #fff;
+    font-weight: 300;
+    margin: 0 0 40px;
+}
+#adjustmentShipWarehouseModal label .req {
+    margin: 2px;
+    color: #4b49ac;
+}
+#adjustmentShipWarehouseModal label.active {
+    transform: translateY(50px);
+    left: 2px;
+    font-size: 14px;
+}
+#adjustmentShipWarehouseModal label.active .req {
+    opacity: 0;
+}
+#adjustmentShipWarehouseModal label.highlight {
+    color: #fff;
+}
+#adjustmentShipWarehouseModal .field-wrap {
+    position: relative;
+    margin-bottom: 40px;
+}
+#adjustmentShipWarehouseModal .top-row:after {
+    content: "";
+    display: table;
+    clear: both;
+}
+#adjustmentShipWarehouseModal .top-row > div {
+    float: left;
+    width: 48%;
+    margin-right: 4%;
+}
+#adjustmentShipWarehouseModal .top-row > div:last-child {
+    margin: 0;
+}
+#adjustmentShipWarehouseModal .button {
+    border: 0;
+    outline: none;
+    border-radius: 0;
+    padding: 15px 0;
+    font-size: 2rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    background: #1ab188;
+    color: #fff;
+    transition: all 0.5s ease;
+    -webkit-appearance: none;
+}
+#adjustmentShipWarehouseModal .button:hover,
+#adjustmentShipWarehouseModal .button:focus {
+    background: #4b49ac;
+}
+#adjustmentShipWarehouseModal .button-block {
+    display: block;
+    width: 100%;
+}
+#adjustmentShipWarehouseModal .forgot {
+    margin-top: -20px;
+    text-align: right;
+}
+/* END ADJUSTMENT SHIP WAREHOUSE */
+
+form {
+    margin-bottom: 0 !important;
+}
+
+.modal-footer {
+    padding: 10px 0 !important;
+}
+
+#listShipWarehouseUsageModal #shipWarehouseUsageList {
+    max-height: calc(100vh - 250px);
+    overflow-y: auto;
+}
+
+#listShipWarehouseUsageModal #shipWarehouseUsageList table thead {
+    position: sticky;
+    top: 0;
+    z-index: 99;
+}
+
+#listShipWarehouseSendOfficeModal #shipWarehouseSendOfficeList {
+    max-height: calc(100vh - 250px);
+    overflow-y: auto;
+}
+
+#listShipWarehouseSendOfficeModal #shipWarehouseSendOfficeList table thead {
+    position: sticky;
+    top: 0;
+    z-index: 99;
+}
+
+.main-panel .content-wrapper > .col-md-12.grid-margin.stretch-card {
+    margin-bottom: 0 !important;
+}
+
+.main-panel .content-wrapper > .col-md-12.grid-margin.stretch-card .card {
+    height: calc(100vh - 100px);
+    overflow: hidden;
+}
+
+.table-responsive {
+    height: calc(100vh - 280px);
+    width: 100%;
+    overflow-y: auto;
+}
+
+/* .table-pills {
+    height: calc(100vh - 280px);
+} */
+
+.ship-list {
+    height: calc(100vh - 110px);
+    overflow-y: auto;
+}
+
+.expandable-table tr td {
+    padding: 0.5rem;
+}
+
+.btn-icon-text {
+    padding: 0.7rem;
+}
+
+.btn-outline-primary,
+.btn-outline-warning,
+.btn-outline-danger {
+    padding: 0.6rem 1rem;
+}
+
+#settings-trigger {
+    bottom: 1.5rem;
+    right: 1.5rem;
+    height: 3rem;
+    width: 3rem;
+}
+
+.generateBtn {
+    border-top-left-radius: 10px !important;
+    border-bottom-left-radius: 10px !important;
+}
+
+/* Disable border for all table */
+.table {
+    border: none !important;
+    /* Hilangkan border dari keseluruhan tabel */
+}
+
+.table th,
+.table td {
+    border: none !important;
+    /* Hilangkan border dari setiap sel */
+}
+
+.table thead th {
+    border-bottom: none !important;
+    /* Hilangkan border bawah header tabel */
+}
+
+.swal2-modal .swal2-icon {
+    margin: 0 !important;
+}
+
+.expandable-table tr td {
+    font-size: 15px;
+    font-weight: 400;
+}
+
+.dropdown-item {
+    display: flex;
+    /* justify-content: space-between; */
+    align-items: center;
+    padding: 8px 12px;
+}
+
+/* Supaya tombol Add lebih kecil dan rapat */
+.add-purchase-order {
+    margin-left: 10px;
+}
