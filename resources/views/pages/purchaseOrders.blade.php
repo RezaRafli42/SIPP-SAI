@@ -32,8 +32,7 @@
                         <div class="input-group mb-3">
                             <div class="input-group-append">
                                 <select name="shipSelect" id="shipSelect" class="form-control pr-1 rounded-left text-center ">
-                                    <option class="text-center" value="" selected>All Ship</option>
-                                    <option class="text-center" value="LPJ">LPJ</option>
+                                    <option class="text-center" value="" selected>All</option>
                                     @foreach ($shipName as $ship)
                                         <option class="text-center" value="{{ $ship }}">
                                             {{ $ship }}</option>
@@ -179,7 +178,8 @@
                                     </div>
 
                                     <div class="col-6 col-sm-4">
-                                        <label for="newDeliveryAddress"><span class="text-danger">*</span>Delivery
+                                        <label for="newDeliveryAddress"><span class="text-danger"
+                                                id="spanNewDeliveryAddress">*</span>Delivery
                                             Address</label>
                                         <select class="text-center" name="selectDeliveryAddress"
                                             id="selectDeliveryAddress">
@@ -267,6 +267,7 @@
                     </div>
                     <form id="addLPJForm" method="POST" action="{{ url('addLPJ') }}" enctype="multipart/form-data">
                         @csrf
+                        <input type="hidden" name="LPJ" value="LPJ">
                         <div class="modal-body">
                             <div class="form-group">
                                 <div class="row">
@@ -313,7 +314,6 @@
                                                 aria-labelledby="newPurchaseOrderNumber">
                                                 <!-- Item list will be appended here -->
                                             </div>
-                                            <div id="newPurchaseOrderNumber-validation" class="text-danger"></div>
                                         </div>
                                     </div>
                                 </div>
@@ -912,9 +912,13 @@
                     document.getElementById('switchNewPurchaseOrderNumber').addEventListener('change',
                         function() {
                             const poInput = document.getElementById('newPurchaseOrderNumber');
+                            const addressInput = document.getElementById('newDeliveryAddress');
+                            const spanInput = document.getElementById('spanNewDeliveryAddress');
                             if (this.checked) {
                                 poInput.value = 'Draft-';
                                 poInput.readOnly = false;
+                                addressInput.required = false;
+                                spanInput.style.display = 'none';
                                 // Listener untuk memastikan "draft-" tidak terhapus
                                 poInput.addEventListener('input', preventDraftRemoval);
                                 // Memastikan kursor berada setelah teks "draft-"
@@ -922,6 +926,8 @@
                             } else {
                                 poInput.value = '';
                                 poInput.readOnly = false;
+                                addressInput.required = true;
+                                spanInput.style.display = 'inline';
                                 poInput.removeEventListener('input', preventDraftRemoval);
                             }
                         });
@@ -1257,6 +1263,9 @@
                                         // Jika service sudah ditambahkan, tampilkan "Added"
                                         if (addedItems.includes(service.id)) {
                                             addButton = '<span class="text-success">Added</span>';
+                                        } else if (service.status !== 'Menunggu Diproses') {
+                                            addButton =
+                                                ''; // Jika status bukan "Menunggu Diproses", sembunyikan tombol Add
                                         }
 
                                         // Tampilkan service dalam tabel
@@ -1352,11 +1361,11 @@
                         $('#detailPurchaseOrderModal #po_id').val(itemData.id_po);
                         $('#detailPurchaseOrderModal #purchaseDate').val(itemData.purchase_date);
                         $('#detailPurchaseOrderModal #purchaseOrderNumber').val(itemData.purchase_order_number);
-                        if (itemData.purchase_order_number.startsWith('LPJ/')) {
-                            $('#detailPurchaseOrderModal #supplier').val('LPJ');
-                        } else {
-                            $('#detailPurchaseOrderModal #supplier').val(itemData.supplier_name);
-                        }
+                        // if (itemData.purchase_order_number.startsWith('LPJ/')) {
+                        //     $('#detailPurchaseOrderModal #supplier').val('LPJ');
+                        // } else {
+                        $('#detailPurchaseOrderModal #supplier').val(itemData.supplier_name);
+                        // }
                         $('#detailPurchaseOrderModal #currency').val(itemData.currency);
                         $('#detailPurchaseOrderModal #shipId').val(itemData.ship_id);
                         $('#detailPurchaseOrderModal #PIC').val(itemData.pic);
@@ -1602,34 +1611,35 @@
                 var addedItems = [];
                 var rowNumber = 1;
                 var jasaSeparatorAdded = false;
+                $('#addLPJModal #submitButton').prop('disabled', true);
 
                 // Event handler when modal is shown
                 $('#addLPJModal').on('show.bs.modal', function() {
-                    const poInput = $('#addLPJModal #newPurchaseOrderNumber');
-                    poInput.val('LPJ/');
-                    poInput.prop('readonly', false);
-                    poInput.on('input', preventDraftRemoval);
-                    setCaretPosition(poInput[0], poInput.val().length);
-
-                    function preventDraftRemoval(event) {
-                        const draftText = 'LPJ/';
-                        if (!event.target.value.startsWith(draftText)) {
-                            event.target.value = draftText;
-                        }
-                    }
-
-                    function setCaretPosition(elem, caretPos) {
-                        if (elem.setSelectionRange) {
-                            elem.focus();
-                            elem.setSelectionRange(caretPos, caretPos);
-                        } else if (elem.createTextRange) {
-                            const range = elem.createTextRange();
-                            range.collapse(true);
-                            range.moveEnd('character', caretPos);
-                            range.moveStart('character', caretPos);
-                            range.select();
-                        }
-                    }
+                    // Cek duplikasi nomor PR
+                    $('#addLPJModal input[name="purchase_order_number"]').on('input', function() {
+                        var POno = $(this).val();
+                        $.ajax({
+                            type: "get",
+                            url: "{{ url('check-purchaseOrderNumber') }}",
+                            data: "POno=" + POno,
+                            success: function(response) {
+                                if (response.exists) {
+                                    $('#addLPJModal #newPurchaseOrderNumber-validation')
+                                        .text('Purchase order number already used.');
+                                    $('#addLPJModal button[id=submitButton]')
+                                        .attr('disabled', true);
+                                } else {
+                                    $('#addLPJModal #newPurchaseOrderNumber-validation')
+                                        .text('');
+                                    $('#addLPJModal button[id=submitButton]')
+                                        .attr('disabled', false);
+                                }
+                            },
+                            error: function() {
+                                alert('Error');
+                            }
+                        });
+                    });
 
                     var today = new Date().toISOString().split('T')[0];
                     $('#addLPJModal #newPurchaseDate').val(today);
@@ -1669,33 +1679,6 @@
                                 newItem.append(newText).append(addButton);
                                 purchaseOrderList.append(newItem);
                             });
-
-                            // Loop through services and add them to the list in the same way as items
-                            // $.each(response.services, function(index, serviceOrder) {
-                            //     var newService = $('<a></a>').addClass(
-                            //         'dropdown-item d-flex justify-content-between align-items-center'
-                            //     );
-                            //     var newServiceText = $('<span></span>').addClass(
-                            //         'purchaseOrder-dropdown').text(serviceOrder
-                            //         .service_order_number);
-                            //     var addServiceButton = $('<button></button>').addClass(
-                            //             'btn btn-sm btn-success add-purchase-order'
-                            //         ) // Initially, it will be btn-success for Add
-                            //         .attr('data-purchase-order-id', serviceOrder.id)
-                            //         .attr('data-added', addedItems.includes(serviceOrder
-                            //             .id) ? 'true' : 'false') // Check if already added
-                            //         .text(addedItems.includes(serviceOrder.id) ? 'Remove' :
-                            //             'Add'); // Set button text based on status
-
-                            //     if (addedItems.includes(serviceOrder.id)) {
-                            //         addServiceButton.removeClass('btn-success').addClass(
-                            //             'btn-danger'
-                            //         ); // If already added, show Remove with btn-danger
-                            //     }
-
-                            //     newService.append(newServiceText).append(addServiceButton);
-                            //     purchaseOrderList.append(newService);
-                            // });
                         },
                         error: function(xhr, status, error) {
                             console.error("Error fetching purchase orders:", error);
@@ -1751,6 +1734,7 @@
                         }
                         updateTableRowNumbers();
                         recalculateTotals();
+                        toggleSubmitButton()
                     }
                 });
 
@@ -1759,6 +1743,7 @@
                     var tableBody = $('#addLPJModal #temporaryItemDraft tbody');
                     tableBody.empty(); // Empty the table
                     jasaSeparatorAdded = false;
+                    $('#addLPJModal #submitButton').prop('disabled', true);
 
                     // Reset totals
                     $('#addLPJModal #subTotalLPJ').text('0');
@@ -1873,6 +1858,7 @@
 
                             updateTableRowNumbers(); // Perbarui penomoran setelah penambahan
                             recalculateTotals();
+                            toggleSubmitButton()
                         },
                         error: function(xhr, status, error) {
                             console.error(error);
@@ -1929,6 +1915,11 @@
                         minimumFractionDigits: 2,
                         maximumFractionDigits: 2
                     }));
+                }
+
+                function toggleSubmitButton() {
+                    var hasData = $('#addLPJModal #temporaryItemDraft tbody tr').length > 0;
+                    $('#addLPJModal #submitButton').prop('disabled', !hasData);
                 }
             });
         </script>

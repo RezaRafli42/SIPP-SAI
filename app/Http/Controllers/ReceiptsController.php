@@ -10,6 +10,7 @@ use App\Models\Suppliers as Suppliers;
 use App\Models\ReceiptItems as ReceiptItems;
 use App\Models\ReceiptServices as ReceiptServices;
 use App\Models\OfficeWarehouse as OfficeWarehouse;
+use App\Models\PurchaseRequests as PurchaseRequests;
 use App\Models\PurchaseRequestItems as PurchaseRequestItems;
 use App\Models\PurchaseRequestServices as PurchaseRequestServices;
 use App\Models\Logs as Logs;
@@ -157,7 +158,6 @@ class ReceiptsController extends Controller
     return response()->json($results);
   }
 
-
   public function getSupplier()
   {
     $supplier = Suppliers::all();
@@ -183,20 +183,22 @@ class ReceiptsController extends Controller
       ->groupBy('purchase_order_items.id')
       ->having('remaining_quantity', '>', 0)
       ->get();
+    // dd($items);
 
     $services = PurchaseOrderServices::join('purchase_orders', 'purchase_order_services.purchase_order_id', '=', 'purchase_orders.id')
-      ->join('purchase_request_services', 'purchase_order_services.purchase_request_service_id', '=', 'purchase_request_services.id')
-      ->join('services', 'purchase_request_services.service_id', '=', 'services.id')
+      ->leftJoin('purchase_request_services', 'purchase_order_services.purchase_request_service_id', '=', 'purchase_request_services.id')
+      ->leftJoin('services AS request_services', 'purchase_request_services.service_id', '=', 'request_services.id') // Alias pertama
+      ->leftJoin('services AS direct_services', 'purchase_order_services.service_id', '=', 'direct_services.id') // Alias kedua
       ->where('purchase_orders.supplier_id', $supplierID)
       ->whereIn('purchase_order_services.status', ['Menunggu Diproses', 'Menunggu LPJ'])
       ->select(
         'purchase_order_services.*',
-        'services.service_code',
-        'services.service_name',
-        'purchase_orders.purchase_order_number'  // Ambil nomor purchase order
+        DB::raw('COALESCE(request_services.service_code, direct_services.service_code) AS service_code'),
+        DB::raw('COALESCE(request_services.service_name, direct_services.service_name) AS service_name'),
+        'purchase_orders.purchase_order_number' // Ambil nomor purchase order
       )
       ->get();
-    // dd($items);
+    // dd($services);
 
     return response()->json([
       'items' => $items,
@@ -206,7 +208,6 @@ class ReceiptsController extends Controller
 
   public function addReceipts(Request $request)
   {
-    // dd($request->all());
     try {
       DB::beginTransaction();
 
@@ -217,14 +218,12 @@ class ReceiptsController extends Controller
         'received_by' => $request->received_by,
       ]);
 
-      // Array untuk menyimpan purchase order ID yang diproses
+      $processedPurchaseOrderServiceIds = [];
       $processedPurchaseOrderIds = [];
 
-      // Proses purchase order items jika `item_id` ada dan berupa array
-      if (is_array($request->item_id)) {
+      // Proses jika `item_id` ada dan berupa array (Menerima Items Saja atau Kombinasi)
+      if (is_array($request->item_id) && count($request->item_id) > 0) {
         foreach ($request->item_id as $index => $purchaseOrderItemId) {
-
-          // Cari purchaseOrderItem berdasarkan `id` di purchase_order_items
           $purchaseOrderItem = PurchaseOrderItems::where('id', $purchaseOrderItemId)->first();
 
           if (!$purchaseOrderItem) {
@@ -232,15 +231,12 @@ class ReceiptsController extends Controller
             return redirect()->back()->with('swal-fail', 'Purchase Order Item not found');
           }
 
-          // Mengambil purchase_request_item_id dari purchase_order_items
           $purchaseRequestItem = PurchaseRequestItems::where('id', $purchaseOrderItem->purchase_request_item_id)->first();
-
           if (!$purchaseRequestItem) {
             DB::rollback();
             return redirect()->back()->with('swal-fail', 'Purchase Request Item not found');
           }
 
-          // Mendapatkan item_id dari purchase_request_items
           $itemId = $purchaseRequestItem->item_id;
           $condition = $purchaseOrderItem->condition;
 
@@ -276,59 +272,87 @@ class ReceiptsController extends Controller
             $officeWarehouseItem->save();
           }
 
-          // Update status berdasarkan `received_quantity`
-          if ($request->received_quantity[$index] < $purchaseOrderItem->quantity) {
-            $purchaseOrderItem->status = 'Belum Selesai';
-          } else {
-            $purchaseOrderItem->status = 'Selesai';
-          }
-          $purchaseOrderItem->save();
-
           $processedPurchaseOrderIds[] = $purchaseOrderItem->purchase_order_id;
 
-          // Membuat entri ReceiptItems
           ReceiptItems::create([
             'receipt_id' => $receipt->id,
             'purchase_order_item_id' => $purchaseOrderItem->id,
             'serial_number' => $request->serial_number[$index],
             'received_quantity' => $request->received_quantity[$index],
           ]);
+
+          $totalReceivedQuantity = ReceiptItems::where('purchase_order_item_id', $purchaseOrderItemId)
+            ->sum('received_quantity');
+
+          $purchaseOrderItem->status = $totalReceivedQuantity < $purchaseOrderItem->quantity ? 'Belum Selesai' : 'Selesai';
+          $purchaseOrderItem->save();
         }
       }
-      if (is_array($request->service_id)) {
-        foreach ($request->service_id as $serviceId) {
 
-          // Membuat entri ReceiptServices
+      // Proses jika `service_id` ada dan berupa array (Menerima Services Saja atau Kombinasi)
+      if (is_array($request->service_id) && count($request->service_id) > 0) {
+        foreach ($request->service_id as $serviceId) {
           ReceiptServices::create([
             'receipt_id' => $receipt->id,
             'purchase_order_service_id' => $serviceId,
           ]);
 
-          // Cari purchaseOrderService terkait dan set status menjadi "Selesai"
           $purchaseOrderService = PurchaseOrderServices::where('id', $serviceId)->first();
           if ($purchaseOrderService) {
             $purchaseOrderService->status = 'Selesai';
             $purchaseOrderService->save();
 
-            // Update status purchase_request_service terkait
-            $purchaseRequestService = PurchaseRequestServices::where('id', $purchaseOrderService->purchase_request_service_id)->first();
-            if ($purchaseRequestService) {
-              $purchaseRequestService->status = 'Selesai';
-              $purchaseRequestService->save();
+            // Mendapatkan Purchase Request Service terkait jika ada
+            if ($purchaseOrderService->purchase_request_service_id) {
+              $purchaseRequestService = PurchaseRequestServices::where('id', $purchaseOrderService->purchase_request_service_id)->first();
+              if ($purchaseRequestService) {
+                $purchaseRequestService->status = 'Selesai';
+                $purchaseRequestService->save();
+
+                $purchaseRequestId = $purchaseRequestService->purchase_request_id;
+                // Periksa apakah hanya ada PRS di PR terkait dan semuanya sudah selesai
+                $allServicesCompleted = PurchaseRequestServices::where('purchase_request_id', $purchaseRequestId)
+                  ->where('status', '!=', 'Selesai')
+                  ->doesntExist();
+
+                $hasItems = PurchaseRequestItems::where('purchase_request_id', $purchaseRequestId)->exists();
+
+                if ($allServicesCompleted && !$hasItems) {
+                  $purchaseRequest = PurchaseRequests::find($purchaseRequestId);
+                  if ($purchaseRequest) {
+                    $purchaseRequest->status = 'Selesai';
+                    $purchaseRequest->save();
+                  }
+                }
+              }
             }
+
+            $processedPurchaseOrderServiceIds[] = $purchaseOrderService->id;
+            $processedPurchaseOrderIds[] = $purchaseOrderService->purchase_order_id;
           }
         }
       }
 
+      // Debugging: Cek PO yang akan diperbarui
       $processedPurchaseOrderIds = array_unique($processedPurchaseOrderIds);
 
+      // Update status setiap Purchase Order berdasarkan POS dan POI terkait
       foreach ($processedPurchaseOrderIds as $purchaseOrderId) {
         $purchaseOrder = PurchaseOrders::find($purchaseOrderId);
 
-        if ($purchaseOrder->status === 'Menunggu LPJ') {
+        if (!$purchaseOrder) {
+          // dd("Purchase Order ID: $purchaseOrderId not found");
           continue;
         }
 
+        // dd("Purchase Order Number: " . $purchaseOrder->purchase_order_number);
+
+        if (str_starts_with($purchaseOrder->purchase_order_number, 'Draft-')) {
+          // dd("Skipping Draft PO: " . $purchaseOrder->purchase_order_number);
+          continue;
+        }
+
+        // Cek apakah semua items dan services pada Purchase Order ini sudah selesai
         $allItemsCompleted = PurchaseOrderItems::where('purchase_order_id', $purchaseOrderId)
           ->where('status', '!=', 'Selesai')
           ->doesntExist();
@@ -341,7 +365,6 @@ class ReceiptsController extends Controller
         } else {
           $purchaseOrder->status = 'Sebagian Selesai';
         }
-
         $purchaseOrder->save();
       }
 

@@ -579,7 +579,7 @@
                                 <th>${index + 1}</th>
                                 <td>${item.code}</td>
                                 <td>${item.name}</td>
-                                <td><input type="number" name="quantity[]" class="form-control text-center" value="${item.status === 'Belum Selesai' ? item.remaining_quantity : item.quantity}" min="1" required></td>
+                                <td><input readonly type="number" name="quantity[]" class="form-control text-center" value="${item.status === 'Belum Selesai' ? item.remaining_quantity : item.quantity}" min="1" required></td>
                                 <td><input type="number" name="received_quantity[]" class="form-control text-center" value="${item.status === 'Belum Selesai' ? item.remaining_quantity : item.quantity}" min="1" required></td>
                                 <td>${item.unit}</td>
                                 <td>${item.condition}</td>
@@ -624,14 +624,16 @@
                 }
 
                 function addItemToStorage(itemID, itemCode, itemName, itemQuantity, itemUnit, itemCondition,
-                    purchaseOrderNumber, utility = null, isService = false) {
+                    purchaseOrderNumber, utility = null, isService = false, supplierName
+                ) {
                     if (isService) {
                         addedReceiptServices.push({
                             id: itemID,
                             code: itemCode,
                             name: itemName,
                             purchaseOrderNumber: purchaseOrderNumber,
-                            utility: utility
+                            utility: utility,
+                            supplierName: supplierName // Simpan nama supplier di service
                         });
                         localStorage.setItem('addedReceiptServices', JSON.stringify(addedReceiptServices));
                     } else {
@@ -646,7 +648,8 @@
                                 quantity: itemQuantity,
                                 unit: itemUnit,
                                 condition: itemCondition,
-                                purchaseOrderNumber: purchaseOrderNumber
+                                purchaseOrderNumber: purchaseOrderNumber,
+                                supplierName: supplierName // Simpan nama supplier di item
                             });
                             localStorage.setItem('addedReceiptItems', JSON.stringify(addedReceiptItems));
                         } else {
@@ -657,7 +660,19 @@
                             return;
                         }
                     }
+
+                    // Tambahkan supplier ke selectedSuppliers jika belum ada
+                    if (!selectedSuppliers.includes(supplierName)) {
+                        selectedSuppliers.push(supplierName);
+                    }
+
+                    updateSupplierInput(); // Perbarui input supplier
                     renderTable(); // Render ulang tabel setelah item atau jasa ditambahkan
+                }
+
+
+                function updateSupplierInput() {
+                    $('#addReceiptModal #newSupplierID').val(selectedSuppliers.join(', '));
                 }
 
                 $(document).on('click', '.add-receipt', function() {
@@ -668,10 +683,11 @@
                     var itemUnit = $(this).data('item-unit');
                     var itemCondition = $(this).data('item-condition');
                     var itemPurchaseOrderNumber = $(this).data('item-purchase-order-number');
+                    var supplierName = $(this).data('item-supplier-name'); // Dapatkan nama supplier
 
-                    // Tambahkan item ke localStorage
+                    // Tambahkan item ke localStorage dengan supplierName
                     addItemToStorage(itemID, itemCode, itemName, itemQuantity, itemUnit, itemCondition,
-                        itemPurchaseOrderNumber, null, false);
+                        itemPurchaseOrderNumber, null, false, supplierName);
 
                     // Ubah tombol menjadi 'Added' setelah item ditambahkan
                     $(this).replaceWith('<span class="text-success">Added</span>');
@@ -683,8 +699,13 @@
                     var serviceName = $(this).data('service-name');
                     var servicePurchaseOrderNumber = $(this).data('service-purchase-order-number');
                     var serviceUtility = $(this).data('service-utility');
+                    var supplierName = $(this).data('service-supplier-name'); // Dapatkan nama supplier
+
+                    // Tambahkan service ke localStorage dengan supplierName
                     addItemToStorage(serviceID, serviceCode, serviceName, '', '', '',
-                        servicePurchaseOrderNumber, serviceUtility, true);
+                        servicePurchaseOrderNumber, serviceUtility, true, supplierName);
+
+                    // Ubah tombol menjadi 'Added' setelah service ditambahkan
                     $(this).replaceWith('<span class="text-success">Added</span>');
                 });
                 renderTable();
@@ -692,21 +713,36 @@
                 $(document).on('click', '.remove-row', function() {
                     var index = $(this).data('index'); // Ambil index baris yang akan dihapus
                     var type = $(this).data('type'); // Ambil tipe data (item atau service)
+                    var removedSupplierName = ''; // Pastikan variabel diinisialisasi
 
                     if (type === 'item') {
-                        // Hapus item dari array addedReceiptItems berdasarkan index
-                        addedReceiptItems.splice(index, 1);
+                        removedSupplierName = addedReceiptItems[index]
+                            .supplierName; // Dapatkan nama supplier dari item
+                        addedReceiptItems.splice(index, 1); // Hapus item dari array addedReceiptItems
                         localStorage.setItem('addedReceiptItems', JSON.stringify(
                             addedReceiptItems)); // Update localStorage
                     } else if (type === 'service') {
-                        // Hapus service dari array addedReceiptServices berdasarkan index
-                        addedReceiptServices.splice(index, 1);
+                        removedSupplierName = addedReceiptServices[index]
+                            .supplierName; // Dapatkan nama supplier dari service
+                        addedReceiptServices.splice(index, 1); // Hapus service dari array addedReceiptServices
                         localStorage.setItem('addedReceiptServices', JSON.stringify(
                             addedReceiptServices)); // Update localStorage
                     }
 
-                    // Render ulang tabel untuk merefleksikan perubahan
-                    renderTable();
+                    // Cek apakah masih ada item/service lain dari supplier tersebut
+                    var supplierStillHasItems = addedReceiptItems.some(item => item.supplierName ===
+                        removedSupplierName);
+                    var supplierStillHasServices = addedReceiptServices.some(service => service.supplierName ===
+                        removedSupplierName);
+
+                    if (!supplierStillHasItems && !supplierStillHasServices) {
+                        // Jika tidak ada item/service lain dari supplier tersebut, hapus dari selectedSuppliers
+                        selectedSuppliers = selectedSuppliers.filter(supplier => supplier !==
+                            removedSupplierName);
+                    }
+
+                    updateSupplierInput(); // Perbarui input supplier
+                    renderTable(); // Render ulang tabel untuk merefleksikan perubahan
                 });
 
                 $('#selectSupplierModal').on('hidden.bs.modal', function(e) {

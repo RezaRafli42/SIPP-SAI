@@ -959,9 +959,9 @@
                                     $('#temporaryItem tbody').append(row);
                                 });
                             } else {
-                                $('#temporaryItem tbody').append(
-                                    '<tr class="text-center"><td colspan="8">No items available.</td></tr>'
-                                );
+                                // $('#temporaryItem tbody').append(
+                                //     '<tr class="text-center"><td colspan="8">No items available.</td></tr>'
+                                // );
                             }
 
                             // Append jasa separator if there are services to display

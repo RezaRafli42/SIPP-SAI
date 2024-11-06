@@ -220,12 +220,8 @@ class PurchaseOrdersController extends Controller
       });
 
     // Filter berdasarkan shipName jika ada
-    if ($shipName === 'LPJ') {
-      $query->where('purchase_orders.purchase_order_number', 'LIKE', '%' . $shipName . '%');
-    } else {
-      if (!empty($shipName) && $shipName !== 'All Ship') { // Filter berdasarkan shipName
-        $query->where('purchase_orders.ship_id', 'LIKE', '%' . $shipName . '%');
-      }
+    if (!empty($shipName) && $shipName !== 'All Ship') { // Filter berdasarkan shipName
+      $query->where('purchase_orders.ship_id', 'LIKE', '%' . $shipName . '%');
     }
 
     // Ambil data dengan item count yang benar
@@ -470,34 +466,34 @@ class PurchaseOrdersController extends Controller
 
       // Update status PR hanya jika purchase_order_number dimulai dengan 'Draft-'
       if (Str::startsWith($purchaseOrder->purchase_order_number, 'Draft-')) {
-        // Mengambil purchase_request_id dari item pertama
         $purchaseRequestId = $request->purchase_request_item_id[0] ?? $request->purchase_request_service_id[0];
         if ($purchaseRequestId) {
           $purchaseRequest = PurchaseRequestItems::find($purchaseRequestId)?->purchaseRequest
             ?? PurchaseRequestServices::find($purchaseRequestId)?->purchaseRequest;
+          if ($purchaseRequest) {
+            // Mengambil semua items dan services dari purchase_request yang terkait
+            $allPurchaseRequestItems = PurchaseRequestItems::where('purchase_request_id', $purchaseRequest->id)->get();
+            $allPurchaseRequestServices = PurchaseRequestServices::where('purchase_request_id', $purchaseRequest->id)->get();
 
-          // Mengambil semua items dan services dari purchase_request yang terkait
-          $allPurchaseRequestItems = PurchaseRequestItems::where('purchase_request_id', $purchaseRequest->id)->get();
-          $allPurchaseRequestServices = PurchaseRequestServices::where('purchase_request_id', $purchaseRequest->id)->get();
-
-          $allProcessed = true;
-          foreach ($allPurchaseRequestItems as $item) {
-            if ($item->status !== 'Diproses') {
-              $allProcessed = false;
-              break;
+            $allProcessed = true;
+            foreach ($allPurchaseRequestItems as $item) {
+              if ($item->status !== 'Diproses') {
+                $allProcessed = false;
+                break;
+              }
             }
-          }
 
-          foreach ($allPurchaseRequestServices as $service) {
-            if ($service->status !== 'Diproses') {
-              $allProcessed = false;
-              break;
+            foreach ($allPurchaseRequestServices as $service) {
+              if ($service->status !== 'Diproses') {
+                $allProcessed = false;
+                break;
+              }
             }
-          }
 
-          // Update status Purchase Request berdasarkan status semua items dan services
-          $purchaseRequest->status = $allProcessed ? 'Terproses' : 'Sebagian Diproses';
-          $purchaseRequest->save();
+            // Update status Purchase Request berdasarkan status semua items dan services
+            $purchaseRequest->status = $allProcessed ? 'Terproses' : 'Sebagian Diproses';
+            $purchaseRequest->save();
+          }
         }
       }
 
@@ -522,9 +518,7 @@ class PurchaseOrdersController extends Controller
 
   public function addLPJ(Request $request)
   {
-    if ($request->input('purchase_order_number') === 'LPJ/' || Str::startsWith($request->input('purchase_order_number'), 'LPJ/') && strlen($request->input('purchase_order_number')) <= 4) {
-      return redirect()->back()->with('swal-fail', 'Please fill out the LPJ number fields');
-    }
+    // dd($request->all());
     $purchaseOrderIds = explode(',', $request->input('purchase_order_ids'));
     // Validasi data dari request
     $request->validate([
@@ -601,6 +595,7 @@ class PurchaseOrdersController extends Controller
 
   public function acceptPurchaseOrders(Request $request)
   {
+    // dd($request->all());
     try {
       DB::beginTransaction();
 
@@ -642,12 +637,21 @@ class PurchaseOrdersController extends Controller
         throw new \Exception('Tidak ada item atau service untuk Purchase Order ini.');
       }
 
-      // Mengambil Purchase Request ID dari item pertama atau service pertama
+      // Mengambil Purchase Request ID dari service pertama yang memiliki relasi ke Purchase Request
       $purchaseRequestId = null;
-      if (!$purchaseOrderItems->isEmpty()) {
-        $purchaseRequestId = $purchaseOrderItems->first()->purchaseRequestItems->purchase_request_id;
+      if (!$purchaseOrderItems->isEmpty() && $purchaseOrderItems->first()->purchaseRequestItems) {
+        $purchaseRequestId = optional($purchaseOrderItems->first()->purchaseRequestItems)->purchase_request_id;
       } elseif (!$purchaseOrderServices->isEmpty()) {
-        $purchaseRequestId = $purchaseOrderServices->first()->purchaseRequestServices->purchase_request_id;
+        foreach ($purchaseOrderServices as $service) {
+          // Hanya ambil purchase_request_id jika ada relasi dengan PurchaseRequestService
+          if ($service->purchase_request_service_id) {
+            $purchaseRequestService = PurchaseRequestServices::find($service->purchase_request_service_id);
+            if ($purchaseRequestService) {
+              $purchaseRequestId = $purchaseRequestService->purchase_request_id;
+              break; // Keluar dari loop jika sudah menemukan purchase_request_id
+            }
+          }
+        }
       }
 
       if ($purchaseRequestId) {
@@ -678,8 +682,10 @@ class PurchaseOrdersController extends Controller
 
         // Update status Purchase Request
         $purchaseRequest = PurchaseRequests::find($purchaseRequestId);
-        $purchaseRequest->status = $allProcessed ? 'Terproses' : 'Sebagian Diproses';
-        $purchaseRequest->save();
+        if ($purchaseRequest) {
+          $purchaseRequest->status = $allProcessed ? 'Terproses' : 'Sebagian Diproses';
+          $purchaseRequest->save();
+        }
       }
 
       // Menambahkan log
