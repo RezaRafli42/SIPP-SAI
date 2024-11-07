@@ -1577,7 +1577,7 @@
                                     if (itemData.currency !== 'IDR' && totalInIDR > 0) {
                                         var totalInIDRRow = `
                                             <tr class="text-center idr-total-row">
-                                                <td colspan="12" style="text-align: right; font-weight: bold;">Total in IDR</td>
+                                                <td colspan="13" style="text-align: right; font-weight: bold;">Total in IDR</td>
                                                 <td>${totalInIDR.toLocaleString('id-ID')}</td>
                                             </tr>
                                         `;
