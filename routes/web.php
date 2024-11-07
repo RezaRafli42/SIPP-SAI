@@ -100,6 +100,7 @@ Route::get('/get-automaticPurchaseRequests', [App\Http\Controllers\PurchaseReque
 // Purchase Orders
 Route::get('/purchaseOrders', [App\Http\Controllers\PurchaseOrdersController::class, 'indexPurchaseOrders'])->name('indexPurchaseOrders');
 Route::get('/check-purchaseOrderNumber', [App\Http\Controllers\PurchaseOrdersController::class, 'checkPurchaseOrderNumber'])->name('checkPurchaseOrderNumber');
+Route::get('/check-LPJNumber', [App\Http\Controllers\PurchaseOrdersController::class, 'checkLPJNumber'])->name('checkLPJNumber');
 Route::get('/get-purchaseRequests', [App\Http\Controllers\PurchaseOrdersController::class, 'getPurchaseRequests'])->name('getPurchaseRequests');
 Route::get('/get-purchaseOrders', [App\Http\Controllers\PurchaseOrdersController::class, 'getPurchaseOrders'])->name('getPurchaseOrders');
 Route::get('/get-itemPurchaseRequests/{id}', [App\Http\Controllers\PurchaseOrdersController::class, 'getItemPurchaseRequests'])->name('getItemPurchaseRequests');
@@ -107,6 +108,7 @@ Route::get('/get-itemPurchaseOrders/{id}', [App\Http\Controllers\PurchaseOrdersC
 Route::post('/addPurchaseOrders', [App\Http\Controllers\PurchaseOrdersController::class, 'addPurchaseOrders'])->name('addPurchaseOrders');
 Route::post('/addLPJ', [App\Http\Controllers\PurchaseOrdersController::class, 'addLPJ'])->name('addLPJ');
 Route::get('/get-purchaseOrderItems/{id}', [App\Http\Controllers\PurchaseOrdersController::class, 'getPurchaseOrderItems'])->name('getPurchaseOrderItems');
+Route::get('/get-purchaseOrderItemforLPJ/{id}', [App\Http\Controllers\PurchaseOrdersController::class, 'getPurchaseOrderItemforLPJ'])->name('getPurchaseOrderItemforLPJ');
 Route::post('/acceptPurchaseOrders', [App\Http\Controllers\PurchaseOrdersController::class, 'acceptPurchaseOrders'])->name('acceptPurchaseOrders');
 Route::post('/rejectPurchaseOrders', [App\Http\Controllers\PurchaseOrdersController::class, 'rejectPurchaseOrders'])->name('rejectPurchaseOrders');
 Route::get('/print-purchaseOrders/{id}', [App\Http\Controllers\PurchaseOrdersController::class, 'printPurchaseOrders'])->name('printPurchaseOrders');

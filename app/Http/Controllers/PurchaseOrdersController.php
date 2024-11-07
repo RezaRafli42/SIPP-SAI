@@ -10,6 +10,7 @@ use App\Models\OfficeWarehouse as OfficeWarehouse;
 use App\Models\Ships as Ships;
 use App\Models\Items as Items;
 use App\Models\Logs as Logs;
+use App\Models\LPJ as LPJ;
 use App\Models\Services as Services;
 use App\Models\PurchaseRequests as PurchaseRequests;
 use App\Models\PurchaseRequestItems as PurchaseRequestItems;
@@ -38,29 +39,68 @@ class PurchaseOrdersController extends Controller
   {
     $suppliers = Suppliers::orderby('supplier_code', 'asc')->get();
     $shipName = Ships::pluck('ship_name');
-    // Get the search query from the request
     $search = $request->query('search');
-    // Join the purchase_orders with suppliers and count the number of items
-    $purchaseOrders = PurchaseOrders::leftJoin('suppliers', 'purchase_orders.supplier_id', '=', 'suppliers.id') // Ubah ke LEFT JOIN
-      ->leftJoin('purchase_order_items', 'purchase_orders.id', '=', 'purchase_order_items.purchase_order_id') // Tetap LEFT JOIN untuk purchase_order_items
+
+    // Query untuk Purchase Orders yang belum ditarik ke LPJ (lpj_id = 0)
+    $purchaseOrders = PurchaseOrders::leftJoin('suppliers', 'purchase_orders.supplier_id', '=', 'suppliers.id')
+      ->leftJoin('purchase_order_items', 'purchase_orders.id', '=', 'purchase_order_items.purchase_order_id')
       ->leftJoin('purchase_order_services', 'purchase_orders.id', '=', 'purchase_order_services.purchase_order_id')
       ->select(
-        'purchase_orders.*',
-        'purchase_orders.id as id_po',
+        'purchase_orders.id as id',
+        'purchase_orders.purchase_order_number as number',
+        'purchase_orders.purchase_date as date', // Gunakan purchase_date sebagai tanggal utama
+        'purchase_orders.pic',
+        'purchase_orders.pic_contact',
+        'purchase_orders.note',
+        'purchase_orders.status',
+        'purchase_orders.ship_id',
+        'purchase_orders.currency',
+        'purchase_orders.delivery_address',
         'suppliers.supplier_name',
         'suppliers.supplier_code',
-        DB::raw('COUNT(DISTINCT purchase_order_items.id) + COUNT(DISTINCT purchase_order_services.id) as item_count')
+        DB::raw('COUNT(DISTINCT purchase_order_items.id) + COUNT(DISTINCT purchase_order_services.id) as item_count'),
+        DB::raw('"PO" as type') // Menandai sebagai PO
       )
-      // If there's a search term, filter by purchase order number
+      ->where(function ($query) {
+        $query->where('purchase_orders.lpj_id', '=', 0)
+          ->orWhereNull('purchase_orders.lpj_id');
+      })
+
       ->when($search, function ($query, $search) {
         return $query->where('purchase_orders.purchase_order_number', 'like', "%{$search}%");
       })
-      ->groupBy('purchase_orders.id', 'suppliers.supplier_name', 'suppliers.supplier_code') // Group by purchase order and supplier details
+      ->groupBy('purchase_orders.id', 'suppliers.supplier_name', 'suppliers.supplier_code');
+
+    // Query untuk LPJ dengan daftar PO terkait
+    $lpjs = LPJ::select(
+      'lpj.id as id',
+      'lpj.lpj_number as number',
+      'lpj.lpj_date as date', // Gunakan lpj_date sebagai tanggal utama
+      'lpj.pic',
+      DB::raw('NULL as pic_contact'),
+      'lpj.note',
+      'lpj.status',
+      DB::raw('NULL as ship_id'),
+      DB::raw('NULL as currency'),
+      DB::raw('NULL as delivery_address'),
+      DB::raw('NULL as supplier_name'),
+      DB::raw('NULL as supplier_code'),
+      DB::raw('COUNT(DISTINCT purchase_order_items.id) + COUNT(DISTINCT purchase_order_services.id) as item_count'),
+      DB::raw('"LPJ" as type') // Menandai sebagai LPJ
+    )
+      ->leftJoin('purchase_orders as po', 'lpj.id', '=', 'po.lpj_id')
+      ->leftJoin('purchase_order_items', 'po.id', '=', 'purchase_order_items.purchase_order_id') // Join untuk POI terkait
+      ->leftJoin('purchase_order_services', 'po.id', '=', 'purchase_order_services.purchase_order_id') // Join untuk POS terkait
+      ->groupBy('lpj.id');
+
+    $allOrders = $purchaseOrders->union($lpjs)
       ->orderByRaw("
-              FIELD(purchase_orders.status, 'Diajukan', 'Menunggu Diproses', 'Sebagian Diproses', 'Sebagian Selesai', 'Selesai', 'Ditolak'),
-              purchase_orders.purchase_date ASC
-          ")
+            FIELD(status, 'Diajukan', 'Menunggu Diproses', 'Sebagian Diproses', 'Sebagian Selesai', 'Selesai', 'Ditolak'),
+            date DESC
+        ")
       ->get();
+
+    // Mengambil informasi pengguna
     $auth = Auth::user();
     if ($auth) {
       $user = [
@@ -68,12 +108,14 @@ class PurchaseOrdersController extends Controller
         'role' => $auth->role,
       ];
     }
+
+    // Mengembalikan data ke view
     return view('pages.purchaseOrders', [
       'suppliers' => $suppliers,
-      'purchaseOrders' => $purchaseOrders,
+      'allOrders' => $allOrders,
       'user' => $user,
       'shipName' => $shipName,
-      'search' => $search, // Pass the search term to the view
+      'search' => $search,
     ]);
   }
 
@@ -166,6 +208,106 @@ class PurchaseOrdersController extends Controller
     return response()->json([
       'items' => $items,
       'services' => $services,  // Mengembalikan juga data jasa (services)
+      'PO' => $PO,
+    ]);
+  }
+
+  public function getPurchaseOrderItemforLPJ($lpj_id)
+  {
+    // Ambil semua Purchase Orders yang terkait dengan LPJ tertentu (berdasarkan lpj_id)
+    $PO = PurchaseOrders::where('lpj_id', $lpj_id)->pluck('id'); // Mendapatkan ID dari semua Purchase Orders terkait
+
+    // Dapatkan ship_id dari Purchase Order terkait (dari PR)
+    $ship_id = PurchaseRequests::join('purchase_request_items', 'purchase_requests.id', '=', 'purchase_request_items.purchase_request_id')
+      ->join('purchase_order_items', 'purchase_request_items.id', '=', 'purchase_order_items.purchase_request_item_id')
+      ->whereIn('purchase_order_items.purchase_order_id', $PO)
+      ->value('purchase_requests.ship_id');
+
+    // Query untuk items (barang)
+    $items = PurchaseOrderItems::whereIn('purchase_order_items.purchase_order_id', $PO) // Menggunakan whereIn untuk semua PO terkait
+      ->leftJoin('purchase_orders', 'purchase_order_items.purchase_order_id', '=', 'purchase_orders.id')
+      ->leftJoin('purchase_request_items', 'purchase_order_items.purchase_request_item_id', '=', 'purchase_request_items.id')
+      ->leftJoin('items', 'purchase_request_items.item_id', '=', 'items.id')
+      ->leftJoin('purchase_requests', 'purchase_request_items.purchase_request_id', '=', 'purchase_requests.id')
+      ->leftJoin('ship_warehouses', function ($join) use ($ship_id) {
+        $join->on('ship_warehouses.item_id', '=', 'items.id')
+          ->where('ship_warehouses.ship_id', '=', $ship_id);
+      })
+      ->leftJoin('ship_warehouse_conditions', function ($join) {
+        $join->on('ship_warehouse_conditions.ship_warehouse_id', '=', 'ship_warehouses.id')
+          ->whereIn('ship_warehouse_conditions.condition', ['Baru', 'Bekas Bisa Pakai', 'Rekondisi']);
+      })
+      ->select(
+        'purchase_orders.purchase_order_number',
+        'purchase_order_items.quantity',
+        'purchase_order_items.condition',
+        'purchase_order_items.price',
+        'purchase_order_items.ppn',
+        'purchase_order_items.status',
+        'items.item_pms',
+        'items.item_name',
+        'items.item_unit',
+        DB::raw('IFNULL(purchase_request_items.option, "undefined") as item_option'),
+        DB::raw('IFNULL(purchase_request_items.utility, "undefined") as utility'),
+        DB::raw('IFNULL(purchase_requests.purchase_request_number, "undefined") as purchase_request_number'),
+        'ship_warehouses.minimum_quantity',
+        DB::raw('IFNULL(SUM(ship_warehouse_conditions.quantity), 0) as total_quantity')
+      )
+      ->groupBy(
+        'purchase_orders.purchase_order_number',
+        'purchase_order_items.quantity',
+        'purchase_order_items.condition',
+        'purchase_order_items.price',
+        'purchase_order_items.ppn',
+        'purchase_order_items.status',
+        'items.item_pms',
+        'items.item_name',
+        'items.item_unit',
+        'purchase_request_items.option',
+        'purchase_request_items.utility',
+        'purchase_requests.purchase_request_number',
+        'ship_warehouses.minimum_quantity',
+        'purchase_request_items.id'
+      )
+      ->get();
+
+    // Query untuk services (jasa)
+    $services = PurchaseOrderServices::whereIn('purchase_order_services.purchase_order_id', $PO) // Menggunakan whereIn untuk semua PO terkait
+      ->leftJoin('purchase_orders', 'purchase_order_services.purchase_order_id', '=', 'purchase_orders.id')
+      ->leftJoin('purchase_request_services', 'purchase_order_services.purchase_request_service_id', '=', 'purchase_request_services.id')
+      ->leftJoin('services as pr_services', 'purchase_request_services.service_id', '=', 'pr_services.id')
+      ->leftJoin('services as manual_services', 'purchase_order_services.service_id', '=', 'manual_services.id')
+      ->leftJoin('purchase_requests', 'purchase_request_services.purchase_request_id', '=', 'purchase_requests.id')
+      ->select(
+        'purchase_orders.purchase_order_number',
+        'purchase_order_services.price',
+        'purchase_order_services.ppn',
+        'purchase_order_services.pph',
+        'purchase_order_services.status',
+        DB::raw('COALESCE(pr_services.service_code, manual_services.service_code) as service_code'),
+        DB::raw('COALESCE(pr_services.service_name, manual_services.service_name) as service_name'),
+        'purchase_order_services.utility',
+        DB::raw('IFNULL(purchase_requests.purchase_request_number, "") as purchase_request_number')
+      )
+      ->groupBy(
+        'purchase_orders.purchase_order_number',
+        'purchase_order_services.price',
+        'purchase_order_services.ppn',
+        'purchase_order_services.pph',
+        'purchase_order_services.status',
+        'pr_services.service_code',
+        'manual_services.service_code',
+        'pr_services.service_name',
+        'manual_services.service_name',
+        'purchase_order_services.utility',
+        'purchase_requests.purchase_request_number'
+      )
+      ->get();
+
+    // Return items dan services ke frontend
+    return response()->json([
+      'items' => $items,
+      'services' => $services,
       'PO' => $PO,
     ]);
   }
@@ -264,6 +406,13 @@ class PurchaseOrdersController extends Controller
   {
     $POno = $request->POno;
     $exists = PurchaseOrders::where('purchase_order_number', $POno)->exists();
+    return response()->json(['exists' => $exists]);
+  }
+
+  public function checkLPJNumber(Request $request)
+  {
+    $LPJno = $request->LPJno;
+    $exists = LPJ::where('lpj_number', $LPJno)->exists();
     return response()->json(['exists' => $exists]);
   }
 
@@ -519,82 +668,44 @@ class PurchaseOrdersController extends Controller
     }
   }
 
-
   public function addLPJ(Request $request)
   {
-    // dd($request->all());
+    // dd('Request data:', $request->all());
+    try {
+      $request->validate([
+        'lpj_number' => 'required|string',
+        'lpj_date' => 'required|date',
+        'pic' => 'required',
+        'note' => 'nullable|string',
+        'purchase_order_ids' => 'required|string',
+      ]);
+    } catch (\Exception $e) {
+      dd('Exception caught:', $e->getMessage());
+    }
     $purchaseOrderIds = explode(',', $request->input('purchase_order_ids'));
-    // Validasi data dari request
-    $request->validate([
-      'purchase_order_number' => 'required',
-      'purchase_date' => 'required|date',
-      'purchase_order_ids' => 'required',
-      'pic' => 'required',
-      'note' => 'nullable|string'
-    ]);
-    // Cek jumlah items dengan status "Menunggu LPJ"
     $waitingItems = PurchaseOrderItems::whereIn('purchase_order_id', $purchaseOrderIds)
-      ->where('status', 'Menunggu LPJ')
+      ->where('status', '!=', 'Selesai')
       ->count();
-
-    // Cek jumlah services dengan status "Menunggu LPJ"
     $waitingServices = PurchaseOrderServices::whereIn('purchase_order_id', $purchaseOrderIds)
-      ->where('status', 'Menunggu LPJ')
+      ->where('status', '!=', 'Selesai')
       ->count();
-
     if ($waitingItems > 0 || $waitingServices > 0) {
-      // Jika ada item atau service dengan status "Menunggu LPJ", batalkan proses dan tampilkan swal-fail
       return redirect()->back()->with('swal-fail', 'Receive the items and services first before creating the LPJ');
     }
-
-    // Jika semua item sudah diproses, lanjutkan pembuatan LPJ
-    // Buat LPJ baru (di tabel purchase_orders)
-    Log::info('Creating new LPJ...');
-    $lpj = new PurchaseOrders();
-    $lpj->purchase_order_number = $request->purchase_order_number;
-    $lpj->purchase_date = $request->purchase_date;
+    $lpj = new LPJ();
+    $lpj->lpj_number = $request->lpj_number;
+    $lpj->lpj_date = $request->lpj_date;
     $lpj->pic = $request->pic;
     $lpj->note = $request->note;
-    $lpj->currency = 'IDR'; // LPJ default-nya selalu menggunakan mata uang IDR
-    $lpj->status = 'Selesai'; // Set status LPJ sebagai 'Selesai'
+    $lpj->status = 'Selesai';
     $lpj->save();
-    Log::info('LPJ created with ID: ' . $lpj->id);
-
-    // Ambil semua Draft Purchase Orders yang dipilih
-    Log::info('Fetching Draft POs...');
-    $draftPOs = PurchaseOrders::whereIn('id', $purchaseOrderIds)->get();
-    Log::info('Found ' . $draftPOs->count() . ' Draft POs to merge.');
-
-    // Update setiap item di Draft PO agar purchase_order_id merujuk ke LPJ baru
-    foreach ($draftPOs as $draftPO) {
-      Log::info('Updating items and services for PO: ' . $draftPO->purchase_order_number);
-
-      // Update semua items yang ada di PurchaseOrderItems, ganti purchase_order_id ke ID LPJ yang baru dibuat
-      PurchaseOrderItems::where('purchase_order_id', $draftPO->id)
-        ->update(['purchase_order_id' => $lpj->id]);
-
-      Log::info('Updated items to point to LPJ ID: ' . $lpj->id);
-
-      // Update semua services yang ada di PurchaseOrderServices, ganti purchase_order_id ke ID LPJ yang baru dibuat
-      PurchaseOrderServices::where('purchase_order_id', $draftPO->id)
-        ->update(['purchase_order_id' => $lpj->id]);  // Ganti ID PO jasa ke ID LPJ baru
-
-      Log::info('Updated services to point to LPJ ID: ' . $lpj->id);
-
-      // Hapus Draft PO setelah item-item dan services di-update
-      $draftPO->delete();
-      Log::info('Deleted draft PO with ID: ' . $draftPO->id);
-    }
-
-    // Log tindakan
-    Logs::create([
+    $updatedPOCount = PurchaseOrders::whereIn('id', $purchaseOrderIds)
+      ->update(['lpj_id' => $lpj->id, 'status' => 'Diambil oleh LPJ']);
+    $logEntry = Logs::create([
       'user_id' => Auth::user()->id,
-      'action' => 'created LPJ ' . $request->purchase_order_number . ' by merging draft Purchase Orders.',
+      'action' => 'Created LPJ with ID: ' . $lpj->id . ' and merged draft Purchase Orders.',
     ]);
-    Log::info('Action logged for LPJ.');
-
-    // Redirect ke halaman sebelumnya dengan pesan sukses
-    return redirect()->back()->with('swal-success', 'LPJ added successfully');
+    return redirect()->back()->with('swal-success', 'LPJ added successfully.');
   }
 
   public function acceptPurchaseOrders(Request $request)
@@ -750,7 +861,6 @@ class PurchaseOrdersController extends Controller
       return redirect()->back()->with('swal-fail', 'Failed to reject Purchase Order: ' . $e->getMessage());
     }
   }
-
 
   public function printPurchaseOrders($id)
   {

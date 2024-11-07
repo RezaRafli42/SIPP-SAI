@@ -270,22 +270,21 @@
                     </div>
                     <form id="addLPJForm" method="POST" action="{{ url('addLPJ') }}" enctype="multipart/form-data">
                         @csrf
-                        <input type="hidden" name="LPJ" value="LPJ">
                         <div class="modal-body">
                             <div class="form-group">
                                 <div class="row">
                                     <div class="col-8  col-sm-6">
-                                        <label for="newPurchaseOrderNumber"><span class="text-danger">*</span>No.
+                                        <label for="newLPJNumber"><span class="text-danger">*</span>No.
                                             LPJ</label>
-                                        <input required name="purchase_order_number" type="text" class="form-control"
-                                            id="newPurchaseOrderNumber">
-                                        <div id="newPurchaseOrderNumber-validation" class="text-danger"></div>
+                                        <input required name="lpj_number" type="text" class="form-control"
+                                            id="newLPJNumber">
+                                        <div id="newLPJNumber-validation" class="text-danger"></div>
                                     </div>
                                     <div class="col-8  col-sm-6">
-                                        <label for="newPurchaseDate"><span class="text-danger">*</span>LPJ
+                                        <label for="newLPJDate"><span class="text-danger">*</span>LPJ
                                             Date</label>
-                                        <input required name="purchase_date" type="date" class="form-control"
-                                            id="newPurchaseDate">
+                                        <input required name="lpj_date" type="date" class="form-control"
+                                            id="newLPJDate">
                                     </div>
                                 </div>
                             </div>
@@ -449,6 +448,107 @@
             </div>
         </div>
 
+        {{-- Detail LPJ Modal --}}
+        <div class="modal fade" id="detailLPJModal" tabindex="-1" role="dialog" aria-labelledby="detailLPJModalLabel"
+            aria-hidden="true">
+            <div class="modal-dialog modal-custom" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="detailLPJModalLabel">Detail LPJ</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <div class="row">
+                                <div class="col-8 col-sm-6">
+                                    <label for="LPJNumber">No. LPJ</label>
+                                    <input type="hidden" name="lpj_id" id="lpj_id">
+                                    <input readonly name="lpj_number" type="text" class="form-control"
+                                        id="LPJNumber">
+                                </div>
+                                <div class="col-8 col-sm-6">
+                                    <label for="LPJDate">LPJ Date</label>
+                                    <input readonly name="lpj_date" type="date" class="form-control" id="LPJDate">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <div class="row">
+                                <div class="col-8 col-sm-6">
+                                    <label for="PIC">PIC</label>
+                                    <input readonly name="pic" type="text" class="form-control" id="PIC">
+                                </div>
+                                <div class="col-8 col-sm-6">
+                                    <label for="note">Note</label>
+                                    <input readonly name="note" type="text" class="form-control" id="note">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <div id="temporaryItem">
+                                <table class="display expandable-table" style="width:100%">
+                                    <thead>
+                                        <tr class="text-center">
+                                            <th>No</th>
+                                            <th>PMS Code</th>
+                                            <th>Item Name</th>
+                                            <th>Quantity</th>
+                                            <th>Unit</th>
+                                            <th>Condition</th>
+                                            <th id="priceHeader">Price</th>
+                                            <th>PPN (%)</th>
+                                            <th>PPh (%)</th>
+                                            <th>Option</th>
+                                            <th>Utility</th>
+                                            <th>PR No.</th>
+                                            <th>Draft No.</th>
+                                            <th id="ammountHeader">Amount</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="itemList">
+                                        <!-- Items will be appended here -->
+                                    </tbody>
+                                    <tfoot>
+                                        <tr class="text-center">
+                                            <td colspan="13" style="text-align: right; font-weight: bold; border: none">
+                                                Sub Total
+                                            </td>
+                                            <td id="subTotal" style="text-align: center; border: none">0</td>
+                                        </tr>
+                                        <tr class="text-center">
+                                            <td colspan="13" style="text-align: right; font-weight: bold; border: none">
+                                                Total PPN
+                                            </td>
+                                            <td id="totalPpn" style="text-align: center; border: none">0</td>
+                                        </tr>
+                                        <tr class="text-center">
+                                            <td colspan="13" style="text-align: right; font-weight: bold; border: none">
+                                                Total PPh
+                                            </td>
+                                            <td id="totalPph" style="text-align: center; border: none">0</td>
+                                        </tr>
+                                        <tr class="text-center">
+                                            <td colspan="13" style="text-align: right; font-weight: bold; border: none">
+                                                Total All
+                                            </td>
+                                            <td id="totalAll" style="text-align: center; border: none">0</td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                            <a class="btn btn-primary" href="#" id="print"><i class="fa-solid fa-print"></i>
+                                Print</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Detail Purchase Order Modal -->
         <div class="modal fade" id="detailPurchaseOrderModal" tabindex="-1" role="dialog"
             aria-labelledby="detailPurchaseOrderModalLabel" aria-hidden="true">
@@ -600,7 +700,7 @@
         {{-- Load Search Purchase Orders --}}
         <script>
             $(document).ready(function() {
-                var purchaseOrdersData = @json($purchaseOrders);
+                var purchaseOrdersData = @json($allOrders);
 
                 function formatDate(dateString) {
                     var date = new Date(dateString);
@@ -614,32 +714,37 @@
                 function renderAllPurchaseOrders() {
                     var tableBody = $('#purchaseOrderTbody');
                     tableBody.empty(); // Clear the table
+
                     if (purchaseOrdersData.length > 0) {
                         var no = 1;
-                        purchaseOrdersData.forEach(function(purchaseOrder) {
+                        purchaseOrdersData.forEach(function(order) {
+                            // Cek tipe data untuk menentukan modal yang akan dibuka
+                            var modalTarget = order.type === 'LPJ' ? '#detailLPJModal' :
+                                '#detailPurchaseOrderModal';
                             var row = `<tr class="text-center">
-                                <th class="align-middle">${no++}</th>
-                                <td>${purchaseOrder.purchase_order_number}</td>
-                                <td>${formatDate(purchaseOrder.purchase_date)}</td>
-                                <td>${purchaseOrder.pic}</td>
-                                <td>${purchaseOrder.item_count}</td>
-                                <td>${purchaseOrder.status}</td>
-                                <td>
-                                    <div class="btn-group" role="group">
-                                        <button type="button" class="btn btn-outline-primary" data-toggle="modal" data-target="#detailPurchaseOrderModal" data-purchaseorder='${JSON.stringify(purchaseOrder)}'>
-                                            <i class="mdi mdi-eye"></i>
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>`;
+                                    <th class="align-middle">${no++}</th>
+                                    <td>${order.number || '-'}</td>
+                                    <td>${formatDate(order.date)}</td>
+                                    <td>${order.pic}</td>
+                                    <td>${order.item_count || '-'}</td> <!-- Menampilkan item_count atau '-' jika kosong -->
+                                    <td>${order.status}</td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <button type="button" class="btn btn-outline-primary" data-toggle="modal" data-target="${modalTarget}" data-purchaseorder='${JSON.stringify(order)}'>
+                                                <i class="mdi mdi-eye"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>`;
                             tableBody.append(row);
                         });
                     } else {
                         tableBody.html(
-                            // '<tr class="text-center"><td colspan="12" class="text-center text-muted">No records founds</td></tr>'
+                            '<tr class="text-center"><td colspan="12" class="text-center text-muted">No records found</td></tr>'
                         );
                     }
                 }
+
                 // Tampilkan data semua kapal saat halaman dimuat pertama kali
                 renderAllPurchaseOrders();
                 let debounceTimeout;
@@ -888,7 +993,7 @@
                         }
                     });
 
-                    // Cek duplikasi nomor PR
+                    // Cek duplikasi nomor PO
                     $('#addPurchaseOrdersModal input[name="purchase_order_number"]').on('input', function() {
                         var POno = $(this).val();
                         $.ajax({
@@ -1376,19 +1481,13 @@
         <script>
             $(document).ready(function() {
                 $('#detailPurchaseOrderModal').on('show.bs.modal', function(e) {
-                    var button = $(e.relatedTarget); // Button that triggered the modal
-                    var itemData = button.data('purchaseorder'); // Extract info from data-* attributes
-
+                    var button = $(e.relatedTarget);
+                    var itemData = button.data('purchaseorder');
                     if (itemData) {
-                        // Set PO details in modal fields
-                        $('#detailPurchaseOrderModal #po_id').val(itemData.id_po);
-                        $('#detailPurchaseOrderModal #purchaseDate').val(itemData.purchase_date);
-                        $('#detailPurchaseOrderModal #purchaseOrderNumber').val(itemData.purchase_order_number);
-                        // if (itemData.purchase_order_number.startsWith('LPJ/')) {
-                        //     $('#detailPurchaseOrderModal #supplier').val('LPJ');
-                        // } else {
+                        $('#detailPurchaseOrderModal #po_id').val(itemData.id);
+                        $('#detailPurchaseOrderModal #purchaseDate').val(itemData.date);
+                        $('#detailPurchaseOrderModal #purchaseOrderNumber').val(itemData.number);
                         $('#detailPurchaseOrderModal #supplier').val(itemData.supplier_name);
-                        // }
                         $('#detailPurchaseOrderModal #currency').val(itemData.currency);
                         $('#detailPurchaseOrderModal #shipId').val(itemData.ship_id);
                         $('#detailPurchaseOrderModal #PIC').val(itemData.pic);
@@ -1396,9 +1495,7 @@
                         $('#detailPurchaseOrderModal #deliveryAddress').val(itemData.delivery_address);
                         $('#detailPurchaseOrderModal #note').val(itemData.note);
                         $('#detailPurchaseOrderModal').find('a[id="print"]').attr('href',
-                            '/print-purchaseOrders/' + itemData.id_po);
-
-                        // Button visibility logic
+                            '/print-purchaseOrders/' + itemData.id);
                         if (itemData.status === "Diajukan") {
                             $('#detailPurchaseOrderModal #submitButton').show();
                             $('#detailPurchaseOrderModal #rejectButton').show();
@@ -1408,15 +1505,13 @@
                             $('#detailPurchaseOrderModal #rejectButton').hide();
                             $('#detailPurchaseOrderModal #print').show();
                         }
-
-                        // Clear previous items and services from the table
                         $('#temporaryItem tbody').empty();
                         $('#temporaryItem tfoot').find('.idr-total-row').remove(); // Remove previous IDR totals
 
                         // Perform AJAX request to fetch items and services
                         $.ajax({
                             url: '/get-purchaseOrderItems/' + itemData
-                                .id_po, // Server returns both items and services
+                                .id, // Server returns both items and services
                             method: 'GET',
                             success: function(response) {
                                 var subTotal = 0;
@@ -1428,7 +1523,6 @@
                                 // 1. Display Items (Barang)
                                 if (response.items && response.items.length > 0) {
                                     response.items.forEach(function(item, index) {
-                                        console.log(item);
                                         var rowClass = ''
                                         if (item.total_quantity < item.minimum_quantity) {
                                             rowClass = 'bg-light-red';
@@ -1566,11 +1660,15 @@
                                 // Wait for all currency conversion requests to complete
                                 $.when.apply($, promises).done(function() {
                                     // Update the totals in the modal
-                                    $('#subTotal').text(subTotal.toLocaleString('id-ID'));
-                                    $('#totalPpn').text(totalPpn.toLocaleString(
-                                        'id-ID'));
-                                    $('#totalPph').text(totalPph.toLocaleString('id-ID'));
-                                    $('#totalAll').text((subTotal + totalPpn + totalPph)
+                                    $('#detailPurchaseOrderModal #subTotal').text(subTotal
+                                        .toLocaleString('id-ID'));
+                                    $('#detailPurchaseOrderModal #totalPpn').text(totalPpn
+                                        .toLocaleString(
+                                            'id-ID'));
+                                    $('#detailPurchaseOrderModal #totalPph').text(totalPph
+                                        .toLocaleString('id-ID'));
+                                    $('#detailPurchaseOrderModal #totalAll').text((
+                                            subTotal + totalPpn + totalPph)
                                         .toLocaleString('id-ID'));
 
                                     // Display total in IDR if necessary
@@ -1590,6 +1688,176 @@
                             }
                         });
 
+                    } else {
+                        console.log('No item data found');
+                    }
+                    $(document).off('click', '.pr-link');
+                    $(document).on('click', '.pr-link', function(e) {
+                        var prNumber = $(this).data('pr-number');
+                        $.ajax({
+                            url: '/get-ship/',
+                            data: {
+                                prNumber: prNumber
+                            },
+                            method: 'GET',
+                            success: function(response) {
+                                localStorage.setItem('activePillId', response.ship_id);
+                            },
+                            error: function() {
+                                console.log('Error loading data');
+                            }
+                        });
+                        localStorage.setItem('prNumber', prNumber);
+                        window.open(`/purchaseRequests`, '_blank');
+                        if (e.ctrlKey) {
+                            e.preventDefault(); // Prevent the default anchor tag behavior
+                            window.open(`/purchaseOrders`, '_blank');
+                        }
+                    });
+                });
+            });
+        </script>
+
+        {{-- Detail LPJ Modal --}}
+        <script>
+            $(document).ready(function() {
+                $('#detailLPJModal').on('show.bs.modal', function(e) {
+                    var button = $(e.relatedTarget);
+                    var itemData = button.data('purchaseorder');
+                    // console.log(itemData);
+                    if (itemData) {
+                        $('#detailLPJModal #lpj_id').val(itemData.id);
+                        $('#detailLPJModal #LPJDate').val(itemData.date);
+                        $('#detailLPJModal #LPJNumber').val(itemData.number);
+                        $('#detailLPJModal #PIC').val(itemData.pic);
+                        $('#detailLPJModal #note').val(itemData.note);
+                        $('#detailLPJModal').find('a[id="print"]').attr('href',
+                            '/print-purchaseOrders/' + itemData.id);
+                        $('#detailLPJModal #temporaryItem tbody').empty();
+                        $('#detailLPJModal #temporaryItem tfoot').find('.idr-total-row')
+                            .remove();
+                        // Perform AJAX request to fetch items and services
+                        $.ajax({
+                            url: '/get-purchaseOrderItemforLPJ/' + itemData
+                                .id, // Server returns both items and services
+                            method: 'GET',
+                            success: function(response) {
+                                var subTotal = 0;
+                                var totalPpn = 0;
+                                var totalPph = 0;
+                                var totalInIDR = 0; // Total sudah dalam IDR karena LPJ selalu IDR
+
+                                // 1. Display Items (Barang)
+                                if (response.items && response.items.length > 0) {
+                                    response.items.forEach(function(item, index) {
+                                        var rowClass = '';
+                                        if (item.total_quantity < item.minimum_quantity) {
+                                            rowClass = 'bg-light-red';
+                                        }
+                                        var amount = parseFloat(item.price) * parseFloat(
+                                            item.quantity);
+                                        var ppnAmount = amount * (parseFloat(item.ppn) /
+                                            100);
+                                        subTotal += amount;
+                                        totalPpn += ppnAmount;
+                                        var amountWithPpn = amount + ppnAmount;
+
+                                        // Update totalInIDR langsung karena IDR
+                                        totalInIDR += amount;
+                                        var row = `
+                                            <tr class="text-center ${rowClass}">
+                                                <td>${index + 1}</td>
+                                                <td>${item.item_pms}</td>
+                                                <td>${item.item_name}</td>
+                                                <td>${item.quantity}</td>
+                                                <td>${item.item_unit}</td>
+                                                <td>${item.condition}</td>
+                                                <td>${parseFloat(item.price).toLocaleString('id-ID')}</td>
+                                                <td>${item.ppn}</td>
+                                                <td></td>
+                                                <td>${item.item_option}</td>
+                                                <td>${item.utility}</td>
+                                                <td>
+                                                    <a href="#" class="pr-link" data-pr-number="${item.purchase_request_number}" data-ship-id=${item.ship_id}>
+                                                        ${item.purchase_request_number}
+                                                    </a>
+                                                </td>
+                                                <td>${item.purchase_order_number}</td>
+                                                <td>${amountWithPpn.toLocaleString('id-ID')}</td>
+                                            </tr>
+                                        `;
+                                        $('#detailLPJModal #temporaryItem tbody').append(
+                                            row);
+                                    });
+                                }
+
+                                // 2. Add Separator for Services
+                                if (response.services && response.services.length > 0) {
+                                    $('#detailLPJModal #temporaryItem tbody').append(`
+                                        <tr class="text-center jasa-separator">
+                                            <td colspan="14"><strong>Services (Jasa)</strong></td>
+                                        </tr>
+                                    `);
+
+                                    // 3. Display Services (Jasa)
+                                    response.services.forEach(function(service, index) {
+                                        var cekPPN = service.ppn ? service.ppn : "0";
+                                        var cekPPH = service.pph ? service.pph : "0";
+                                        var price = parseFloat(service.price);
+                                        var quantity = 1;
+                                        var amount = price * quantity;
+
+                                        // Hitung PPN dan PPh jasa
+                                        var ppnAmount = amount * (parseFloat(cekPPN) / 100);
+                                        var pphAmount = amount * (parseFloat(cekPPH) / 100);
+
+                                        // Tambahkan jasa ke Sub Total dan PPN serta PPh ke total masing-masing
+                                        subTotal += amount;
+                                        totalPpn += ppnAmount;
+                                        totalPph += pphAmount;
+
+                                        var amountWithTaxes = amount + ppnAmount +
+                                            pphAmount;
+                                        totalInIDR += amount; // Update total langsung
+
+                                        // Menampilkan hasil pada tabel
+                                        var row = `
+                                                <tr class="text-center">
+                                                    <td>Jasa</td>
+                                                    <td>${service.service_code || ''}</td>
+                                                    <td>${service.service_name || ''}</td>
+                                                    <td>1</td>
+                                                    <td></td>
+                                                    <td></td>
+                                                    <td>${price.toLocaleString('id-ID')}</td>
+                                                    <td>${cekPPN}</td>
+                                                    <td>${cekPPH}</td>
+                                                    <td></td>
+                                                    <td>${service.utility || ''}</td>
+                                                    <td>${service.purchase_request_number || ''}</td>
+                                                    <td>${service.purchase_order_number}</td>
+                                                    <td>${amountWithTaxes.toLocaleString('id-ID')}</td>
+                                                </tr>
+                                            `;
+                                        $('#detailLPJModal #temporaryItem tbody').append(
+                                            row);
+                                    });
+                                }
+
+                                // Update the totals in the modal
+                                $('#detailLPJModal #subTotal').text(subTotal.toLocaleString(
+                                    'id-ID'));
+                                $('#detailLPJModal #totalPpn').text(totalPpn.toLocaleString(
+                                    'id-ID'));
+                                $('#detailLPJModal #totalPph').text(totalPph.toLocaleString(
+                                    'id-ID'));
+                                $('#detailLPJModal #totalAll').text((subTotal + totalPpn + totalPph)
+                                    .toLocaleString('id-ID'));
+                            },
+                            error: function() {
+                                console.log('Error loading data');
+                            }
+                        });
                     } else {
                         console.log('No item data found');
                     }
@@ -1647,29 +1915,30 @@
                 var addedItems = [];
                 var rowNumber = 1;
                 var jasaSeparatorAdded = false;
+                var isLPJNumberValid = false;
                 $('#addLPJModal #submitButton').prop('disabled', true);
 
                 // Event handler when modal is shown
                 $('#addLPJModal').on('show.bs.modal', function() {
-                    // Cek duplikasi nomor PR
-                    $('#addLPJModal input[name="purchase_order_number"]').on('input', function() {
-                        var POno = $(this).val();
+                    $('#addLPJModal input[name="lpj_number"]').on('input', function() {
+                        var LPJno = $(this).val();
                         $.ajax({
                             type: "get",
-                            url: "{{ url('check-purchaseOrderNumber') }}",
-                            data: "POno=" + POno,
+                            url: "{{ url('check-LPJNumber') }}",
+                            data: "LPJno=" + LPJno,
                             success: function(response) {
                                 if (response.exists) {
-                                    $('#addLPJModal #newPurchaseOrderNumber-validation')
-                                        .text('Purchase order number already used.');
+                                    $('#addLPJModal #newLPJNumber-validation')
+                                        .text('LPJ number already used.');
                                     $('#addLPJModal button[id=submitButton]')
                                         .attr('disabled', true);
+                                    isLPJNumberValid = false;
                                 } else {
-                                    $('#addLPJModal #newPurchaseOrderNumber-validation')
+                                    $('#addLPJModal #newLPJNumber-validation')
                                         .text('');
-                                    $('#addLPJModal button[id=submitButton]')
-                                        .attr('disabled', false);
+                                    isLPJNumberValid = true;
                                 }
+                                toggleSubmitButton();
                             },
                             error: function() {
                                 alert('Error');
@@ -1678,7 +1947,7 @@
                     });
 
                     var today = new Date().toISOString().split('T')[0];
-                    $('#addLPJModal #newPurchaseDate').val(today);
+                    $('#addLPJModal #newLPJDate').val(today);
 
                     // Fetch purchase orders and populate dropdown
                     $.ajax({
@@ -1686,9 +1955,7 @@
                         url: "{{ url('get-purchaseOrders') }}",
                         success: function(response) {
                             var purchaseOrderList = $('#purchaseOrder-list');
-                            purchaseOrderList.empty(); // Clear the dropdown
-
-                            // Loop through both items and services, combine them into one list
+                            purchaseOrderList.empty();
                             $.each(response, function(index, purchaseOrder) {
                                 var newItem = $('<div></div>')
                                     .addClass('dropdown-item')
@@ -1770,8 +2037,8 @@
                         }
                         updateTableRowNumbers();
                         recalculateTotals();
-                        toggleSubmitButton()
                     }
+                    toggleSubmitButton()
                 });
 
                 // Reset modal when hidden
@@ -1803,9 +2070,7 @@
                         url: '/get-itemPurchaseOrders/' + purchaseOrderID,
                         type: 'GET',
                         success: function(response) {
-                            console.log(response);
                             var tableBody = $('#addLPJModal #temporaryItemDraft tbody');
-
                             // First, add all items
                             response.items.forEach(function(item, index) {
                                 var newRow = $('<tr></tr>').addClass('text-center').attr(
@@ -1957,7 +2222,7 @@
 
                 function toggleSubmitButton() {
                     var hasData = $('#addLPJModal #temporaryItemDraft tbody tr').length > 0;
-                    $('#addLPJModal #submitButton').prop('disabled', !hasData);
+                    $('#addLPJModal #submitButton').prop('disabled', !(isLPJNumberValid && hasData));
                 }
             });
         </script>
