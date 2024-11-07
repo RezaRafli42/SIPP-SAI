@@ -232,6 +232,9 @@
                                                 <th style="width: 90px"><span class="text-danger">*</span>PPN
                                                     (%)
                                                 </th>
+                                                <th style="width: 90px"><span class="text-danger">*</span>PPh
+                                                    (%)
+                                                </th>
                                                 <th>Option</th>
                                                 <th><span class="text-danger">*</span>Utility</th>
                                                 <th>PR No.</th>
@@ -331,6 +334,7 @@
                                                 <th>Condition</th>
                                                 <th>Price</th>
                                                 <th>PPN(%)</th>
+                                                <th>PPh(%)</th>
                                                 <th>Option</th>
                                                 <th>Utility</th>
                                                 <th>PR No.</th>
@@ -338,21 +342,28 @@
                                             </tr>
                                         <tfoot>
                                             <tr class="text-center">
-                                                <td colspan="11"
+                                                <td colspan="12"
                                                     style="text-align: right; font-weight: bold; border: none">
                                                     Sub Total
                                                 </td>
                                                 <td id="subTotalLPJ" style="text-align: center; border: none">0</td>
                                             </tr>
                                             <tr class="text-center">
-                                                <td colspan="11"
+                                                <td colspan="12"
                                                     style="text-align: right; font-weight: bold; border: none">
                                                     Total PPN
                                                 </td>
                                                 <td id="totalPpnLPJ" style="text-align: center; border: none">0</td>
                                             </tr>
                                             <tr class="text-center">
-                                                <td colspan="11"
+                                                <td colspan="12"
+                                                    style="text-align: right; font-weight: bold; border: none">
+                                                    Total PPh
+                                                </td>
+                                                <td id="totalPphLPJ" style="text-align: center; border: none">0</td>
+                                            </tr>
+                                            <tr class="text-center">
+                                                <td colspan="12"
                                                     style="text-align: right; font-weight: bold; border: none">
                                                     Total All
                                                 </td>
@@ -526,6 +537,7 @@
                                                 <th>Condition</th>
                                                 <th id="priceHeader">Price</th>
                                                 <th>PPN (%)</th>
+                                                <th>PPh (%)</th>
                                                 <th>Option</th>
                                                 <th>Utility</th>
                                                 <th>PR No.</th>
@@ -538,21 +550,28 @@
                                         </tbody>
                                         <tfoot>
                                             <tr class="text-center">
-                                                <td colspan="12"
+                                                <td colspan="13"
                                                     style="text-align: right; font-weight: bold; border: none">
                                                     Sub Total
                                                 </td>
                                                 <td id="subTotal" style="text-align: center; border: none">0</td>
                                             </tr>
                                             <tr class="text-center">
-                                                <td colspan="12"
+                                                <td colspan="13"
                                                     style="text-align: right; font-weight: bold; border: none">
                                                     Total PPN
                                                 </td>
                                                 <td id="totalPpn" style="text-align: center; border: none">0</td>
                                             </tr>
                                             <tr class="text-center">
-                                                <td colspan="12"
+                                                <td colspan="13"
+                                                    style="text-align: right; font-weight: bold; border: none">
+                                                    Total PPh
+                                                </td>
+                                                <td id="totalPph" style="text-align: center; border: none">0</td>
+                                            </tr>
+                                            <tr class="text-center">
+                                                <td colspan="13"
                                                     style="text-align: right; font-weight: bold; border: none">
                                                     Total All
                                                 </td>
@@ -1053,6 +1072,9 @@
                     var ppnInput = itemCategory === 'Service' ?
                         '<input type="number" name="ppn_service[]" class="form-control text-center" value="0" min="0">' :
                         `<input type="number" name="ppn[]" class="form-control text-center" value="0" min="0">`;
+                    var pphInput = itemCategory === 'Service' ?
+                        '<input type="number" name="pph_service[]" class="form-control text-center" value="0" min="0" step="any">' :
+                        ``;
                     var quantityInput = itemCategory === 'Service' ?
                         `1` :
                         `<input type="number" name="quantity[]" class="form-control text-center quantity-input" value="${itemQuantity}" min="1" required>`;
@@ -1073,6 +1095,7 @@
                         ${conditionInput}
                         <td>${priceInput}</td>
                         <td>${ppnInput}</td>
+                        <td>${pphInput}</td>
                         <td>${itemOption}</td>
                         <td>${utilityInput}</td>
                         <td>${itemPRno ? itemPRno : ''}</td>
@@ -1398,6 +1421,7 @@
                             success: function(response) {
                                 var subTotal = 0;
                                 var totalPpn = 0;
+                                var totalPph = 0;
                                 var totalInIDR = 0;
                                 var promises = [];
 
@@ -1415,6 +1439,8 @@
                                             100);
                                         subTotal += amount;
                                         totalPpn += ppnAmount;
+                                        var amountWithPpn = (amount + ppnAmount)
+                                            .toLocaleString('id-ID');
 
                                         var row = `
                                                 <tr class="text-center ${rowClass}">
@@ -1426,6 +1452,7 @@
                                                     <td>${item.condition}</td>
                                                     <td>${parseFloat(item.price).toLocaleString('id-ID')}</td>
                                                     <td>${item.ppn}</td>
+                                                    <td></td>
                                                     <td>${item.item_option}</td>
                                                     <td>${item.utility}</td>
                                                     <td>
@@ -1434,7 +1461,7 @@
                                                         </a>
                                                     </td>
                                                     <td>${item.status}</td>
-                                                    <td>${amount.toLocaleString('id-ID')}</td>
+                                                    <td>${amountWithPpn.toLocaleString('id-ID')}</td>
                                                 </tr>
                                             `;
                                         $('#temporaryItem tbody').append(row);
@@ -1456,31 +1483,35 @@
                                             totalInIDR += amount; // Already in IDR
                                         }
                                     });
-                                } else {
-                                    // $('#temporaryItem tbody').append(
-                                    //     '<tr class="text-center"><td colspan="13">No items available.</td></tr>'
-                                    // );
-                                }
+                                } else {}
 
                                 // 2. Add Separator for Services
                                 if (response.services && response.services.length > 0) {
                                     $('#temporaryItem tbody').append(`
                                     <tr class="text-center jasa-separator">
-                                        <td colspan="13"><strong>Services (Jasa)</strong></td>
+                                        <td colspan="14"><strong>Services (Jasa)</strong></td>
                                     </tr>
                                 `);
 
                                     // 3. Display Services (Jasa)
                                     response.services.forEach(function(service, index) {
-                                        cekPPN = service.ppn ? service.ppn :
-                                            "0";
-                                        var amount = parseFloat(service
-                                            .price); // Harga jasa
-                                        var ppnAmount = amount * (parseFloat(cekPPN) /
-                                            100); // Hitung PPN jasa
-                                        subTotal += amount; // Tambahkan jasa ke Sub Total
-                                        totalPpn +=
-                                            ppnAmount; // Tambahkan PPN jasa ke total PPN
+                                        var cekPPN = service.ppn ? service.ppn : "0";
+                                        var cekPPH = service.pph ? service.pph : "0";
+                                        var price = parseFloat(service.price);
+                                        var quantity = 1;
+                                        var amount = price * quantity;
+
+                                        // Hitung PPN dan PPh jasa
+                                        var ppnAmount = amount * (parseFloat(cekPPN) / 100);
+                                        var pphAmount = amount * (parseFloat(cekPPH) / 100);
+
+                                        // Tambahkan jasa ke Sub Total dan PPN serta PPh ke total masing-masing
+                                        subTotal += amount;
+                                        totalPpn += ppnAmount;
+                                        totalPph += pphAmount;
+
+                                        var amountWithTaxes = amount + ppnAmount +
+                                            pphAmount;
 
                                         // Handle service fields yang mungkin null (misalnya dari service-list)
                                         var serviceCode = service.service_code ? service
@@ -1490,37 +1521,41 @@
                                         var purchaseRequestNumber = service
                                             .purchase_request_number ? service
                                             .purchase_request_number : "";
-                                        var ppn = service.ppn ? service.ppn : "";
+                                        var ppn = service.ppn ? service.ppn : "0";
+                                        var pph = service.pph ? service.pph : "0";
                                         var utility = service.utility ? service.utility :
                                             "";
                                         var servicePRLink = purchaseRequestNumber !== "" ?
                                             `<a href="#" class="pr-link" data-pr-number="${purchaseRequestNumber}" data-ship-id="${service.ship_id}">
-                                                ${purchaseRequestNumber}</a>` : purchaseRequestNumber;
-                                        var ppn = service.ppn ? service.ppn :
-                                            "0";
+                                        ${purchaseRequestNumber}</a>` : purchaseRequestNumber;
+
                                         // Pastikan service.price dalam bentuk angka sebelum diformat
                                         var formattedPrice = parseFloat(service.price)
                                             .toLocaleString('id-ID');
                                         var formattedPpnAmount = ppnAmount.toLocaleString(
                                             'id-ID');
+                                        var formattedPph = parseFloat(pph).toString();
 
+                                        // Menampilkan hasil pada tabel
                                         var row = `
-                                            <tr class="text-center">
-                                                <td>Jasa</td>
-                                                <td>${serviceCode}</td>
-                                                <td>${serviceName}</td>
-                                                <td>1</td>
-                                                <td></td>
-                                                <td></td>
-                                                <td>${formattedPrice}</td>
-                                                <td>${ppn}</td>
-                                                <td></td>
-                                                <td>${utility}</td>
-                                                <td>${servicePRLink}</td>
-                                                <td>${service.status}</td>
-                                                <td>${formattedPrice}</td>
-                                            </tr>
-                                        `;
+                                        <tr class="text-center">
+                                            <td>Jasa</td>
+                                            <td>${serviceCode}</td>
+                                            <td>${serviceName}</td>
+                                            <td>1</td>
+                                            <td></td>
+                                            <td></td>
+                                            <td>${formattedPrice}</td>
+                                            <td>${ppn}</td>
+                                            <td>${formattedPph}</td>
+                                            <td></td>
+                                            <td>${utility}</td>
+                                            <td>${servicePRLink}</td>
+                                            <td>${service.status}</td>
+                                            <td>${amountWithTaxes.toLocaleString(
+                                            'id-ID')}</td>
+                                        </tr>
+                                            `;
                                         $('#temporaryItem tbody').append(row);
 
                                         // Tambahkan harga jasa ke total (anggap jasa dalam IDR)
@@ -1533,8 +1568,9 @@
                                     // Update the totals in the modal
                                     $('#subTotal').text(subTotal.toLocaleString('id-ID'));
                                     $('#totalPpn').text(totalPpn.toLocaleString(
-                                        'id-ID')); // Total PPN termasuk jasa
-                                    $('#totalAll').text((subTotal + totalPpn)
+                                        'id-ID'));
+                                    $('#totalPph').text(totalPph.toLocaleString('id-ID'));
+                                    $('#totalAll').text((subTotal + totalPpn + totalPph)
                                         .toLocaleString('id-ID'));
 
                                     // Display total in IDR if necessary
@@ -1774,8 +1810,10 @@
                             response.items.forEach(function(item, index) {
                                 var newRow = $('<tr></tr>').addClass('text-center').attr(
                                     'data-po-id', purchaseOrderID).attr('data-category', 'Item');
-                                var itemAmount = item.price * item.quantity + (item.price * item
-                                    .quantity * (item.ppn / 100));
+
+                                var baseAmount = parseFloat(item.price) * parseFloat(item.quantity);
+                                var ppnAmount = baseAmount * (parseFloat(item.ppn) / 100);
+                                var itemAmount = baseAmount + ppnAmount;
 
                                 newRow.append($('<td></td>').text('')) // Tempat untuk nomor
                                     .append($('<td></td>').text(item.purchase_request_items.items
@@ -1786,15 +1824,17 @@
                                     .append($('<td></td>').text(item.purchase_request_items.items
                                         .item_unit))
                                     .append($('<td></td>').text(item.condition))
-                                    .append($('<td></td>').text(item.price))
+                                    .append($('<td></td>').text(parseInt(item.price).toLocaleString(
+                                        'id-ID'))) // Format harga
                                     .append($('<td></td>').text(item.ppn))
+                                    .append($('<td></td>').text(''))
                                     .append($('<td></td>').text(item.purchase_request_items.option))
                                     .append($('<td></td>').text(item.purchase_request_items
                                         .utility))
                                     .append($('<td></td>').text(item.purchase_request_items
                                         .purchase_request.purchase_request_number))
-                                    .append($('<td></td>').text(itemAmount.toLocaleString(
-                                        'id-ID', {})));
+                                    .append($('<td></td>').text(parseInt(itemAmount).toLocaleString(
+                                        'id-ID'))); // Format amount
 
                                 // Jika ada separator jasa, tambahkan items di atasnya
                                 if (jasaSeparatorAdded) {
@@ -1813,6 +1853,7 @@
                                 tableBody.append(separatorRow);
                                 jasaSeparatorAdded = true; // Tandai bahwa separator sudah ditambahkan
                             }
+
                             // Now, add all services after separator
                             response.services.forEach(function(service, index) {
                                 var newRow = $('<tr></tr>').addClass('text-center').attr(
@@ -1824,17 +1865,18 @@
                                     service.purchase_request_services.services.service_code :
                                     service.services.service_code;
                                 var serviceName = service.purchase_request_services ?
-                                    service.purchase_request_services.services
-                                    .service_name : service.services.service_name;
+                                    service.purchase_request_services.services.service_name :
+                                    service.services.service_name;
                                 var serviceUtility = service.purchase_request_services ? service
                                     .purchase_request_services.utility : service.utility;
                                 var purchaseRequestNumber = service.purchase_request_services ?
                                     service.purchase_request_services.purchase_request
                                     .purchase_request_number : '';
-
-                                // Service manual mungkin tidak memiliki kuantitas atau PPN
-                                var serviceAmount = service
-                                    .price; // Manual entry biasanya tidak punya quantity dan ppn
+                                var baseAmount = service.price * 1; // Harga pokok
+                                var ppnAmount = baseAmount * (service.ppn / 100); // PPN
+                                var pphAmount = baseAmount * (service.pph / 100); // PPh
+                                var serviceAmount = baseAmount + ppnAmount + pphAmount;
+                                var formattedPph = parseFloat(service.pph).toString();
 
                                 newRow.append($('<td></td>').text('Jasa'))
                                     .append($('<td></td>').text(serviceCode))
@@ -1843,19 +1885,18 @@
                                         '1')) // Jasa tidak punya kuantitas selain "1"
                                     .append($('<td></td>').text('')) // Kosongkan kolom unit
                                     .append($('<td></td>').text('')) // Kosongkan kolom condition
-                                    .append($('<td></td>').text(service.price))
-                                    .append($('<td></td>').text(
-                                        service.ppn)) // Kosongkan kolom PPN untuk jasa
+                                    .append($('<td></td>').text(parseInt(service.price)
+                                        .toLocaleString('id-ID'))) // Format harga
+                                    .append($('<td></td>').text(service.ppn))
+                                    .append($('<td></td>').text(formattedPph))
                                     .append($('<td></td>').text('')) // Kosongkan kolom option
                                     .append($('<td></td>').text(serviceUtility))
                                     .append($('<td></td>').text(purchaseRequestNumber))
-                                    .append($('<td></td>').text(serviceAmount.toLocaleString(
-                                        'id-ID', {})));
+                                    .append($('<td></td>').text(parseInt(serviceAmount)
+                                        .toLocaleString('id-ID'))); // Format amount
 
                                 tableBody.append(newRow);
                             });
-
-
                             updateTableRowNumbers(); // Perbarui penomoran setelah penambahan
                             recalculateTotals();
                             toggleSubmitButton()
@@ -1885,36 +1926,33 @@
                 function recalculateTotals() {
                     var totalAmount = 0;
                     var totalPpn = 0;
+                    var totalPph = 0;
 
                     $('#addLPJModal #temporaryItemDraft tbody tr').each(function() {
-                        var price = parseFloat($(this).find('td:eq(6)').text()) || 0;
+                        var price = parseFloat($(this).find('td:eq(6)').text().replace(/\./g, '')) || 0;
                         var quantity = parseFloat($(this).find('td:eq(3)').text()) || 0;
                         var ppn = parseFloat($(this).find('td:eq(7)').text()) || 0;
+                        var pph = parseFloat($(this).find('td:eq(8)').text()) || 0;
 
                         var amount = price * quantity;
                         var ppnAmount = amount * (ppn / 100);
+                        var pphAmount = amount * (pph / 100);
 
-                        $(this).find('td:eq(11)').text((amount + ppnAmount).toLocaleString('id-ID', {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2
-                        }));
+                        var totalRowAmount = amount + ppnAmount + pphAmount;
+
+                        // Update kolom amount per baris dengan format rupiah
+                        $(this).find('td:eq(12)').text(totalRowAmount.toLocaleString('id-ID'));
 
                         totalAmount += amount;
                         totalPpn += ppnAmount;
+                        totalPph += pphAmount;
                     });
 
-                    $('#addLPJModal #subTotalLPJ').text(totalAmount.toLocaleString('id-ID', {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2
-                    }));
-                    $('#addLPJModal #totalPpnLPJ').text(totalPpn.toLocaleString('id-ID', {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2
-                    }));
-                    $('#addLPJModal #totalAllLPJ').text((totalAmount + totalPpn).toLocaleString('id-ID', {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2
-                    }));
+                    // Update sub total, PPN, PPh, dan total keseluruhan dengan format rupiah
+                    $('#addLPJModal #subTotalLPJ').text(totalAmount.toLocaleString('id-ID'));
+                    $('#addLPJModal #totalPpnLPJ').text(totalPpn.toLocaleString('id-ID'));
+                    $('#addLPJModal #totalPphLPJ').text(totalPph.toLocaleString('id-ID'));
+                    $('#addLPJModal #totalAllLPJ').text((totalAmount + totalPpn + totalPph).toLocaleString('id-ID'));
                 }
 
                 function toggleSubmitButton() {

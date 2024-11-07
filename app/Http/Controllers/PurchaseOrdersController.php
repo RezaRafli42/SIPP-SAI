@@ -141,6 +141,7 @@ class PurchaseOrdersController extends Controller
       ->select(
         'purchase_order_services.price',
         'purchase_order_services.ppn',
+        'purchase_order_services.pph',
         'purchase_order_services.status',
         DB::raw('COALESCE(pr_services.service_code, manual_services.service_code) as service_code'),
         DB::raw('COALESCE(pr_services.service_name, manual_services.service_name) as service_name'),
@@ -150,6 +151,7 @@ class PurchaseOrdersController extends Controller
       ->groupBy(
         'purchase_order_services.price',
         'purchase_order_services.ppn',
+        'purchase_order_services.pph',
         'purchase_order_services.status',
         'pr_services.service_code',
         'manual_services.service_code',
@@ -448,6 +450,8 @@ class PurchaseOrdersController extends Controller
           // Simpan informasi lain terkait service
           $purchaseOrderService->price = $request->input('price_service')[$index] ?? 0;
           $purchaseOrderService->ppn = $request->input('ppn_service')[$index] ?? 0;
+          $pphService = str_replace(',', '.', $request->input('pph_service')[$index] ?? 0);
+          $purchaseOrderService->pph = $pphService;
           $purchaseOrderService->utility = $request->input('utility')[$index] ?? '';
 
           // Set status jasa sesuai dengan status PO
