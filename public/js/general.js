@@ -26,4 +26,12 @@ document.addEventListener("DOMContentLoaded", function () {
     setTimeout(function () {
         $(".alert").alert("close");
     }, 5000);
+
+    // Mematikan enter untuk accept form
+    $(".modal").on("keydown", "input", function (event) {
+        if (event.key === "Enter") {
+            event.preventDefault();
+            return false;
+        }
+    });
 });

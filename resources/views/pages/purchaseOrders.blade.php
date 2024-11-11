@@ -1482,11 +1482,13 @@
         {{-- Detail Purchase Order Modal --}}
         <script>
             $(document).ready(function() {
+                let exchangeRateToIDR = 1;
                 // Menghitung perubahan quantity
                 function recalculateTotals() {
                     let subTotal = 0;
                     let totalPpn = 0;
                     let totalPph = 0;
+                    let totalInIDR = 0;
 
                     $('#detailPurchaseOrderModal #temporaryItem tbody tr').each(function() {
                         const $row = $(this);
@@ -1508,6 +1510,12 @@
                         subTotal += amount;
                         totalPpn += ppnAmount;
                         totalPph += pphAmount;
+
+                        if (exchangeRateToIDR && exchangeRateToIDR !== 1) {
+                            totalInIDR += amount * exchangeRateToIDR;
+                        } else {
+                            totalInIDR += amount; // Jika IDR, gunakan nilai amount langsung
+                        }
                     });
 
                     // Update total keseluruhan di footer
@@ -1516,6 +1524,10 @@
                     $('#detailPurchaseOrderModal #totalPph').text(totalPph.toLocaleString('id-ID'));
                     $('#detailPurchaseOrderModal #totalAll').text((subTotal + totalPpn - totalPph).toLocaleString(
                         'id-ID'));
+                    if (exchangeRateToIDR && exchangeRateToIDR !== 1) {
+                        $('#detailPurchaseOrderModal #totalInIDR').text(totalInIDR.toLocaleString(
+                            'id-ID')); // Update nilai total IDR
+                    }
                 }
                 $(document).on('input', '.quantity-input', function() {
                     recalculateTotals();
@@ -1609,6 +1621,8 @@
                                                 url: `https://api.frankfurter.app/${response.PO.purchase_date}?from=${response.PO.currency}&to=IDR`,
                                                 method: 'GET'
                                             }).done(function(rateResponse) {
+                                                exchangeRateToIDR = rateResponse
+                                                    .rates.IDR;
                                                 var conversionRate = rateResponse
                                                     .rates.IDR;
                                                 var convertedAmount = amount *
@@ -1719,7 +1733,7 @@
                                         var totalInIDRRow = `
                                             <tr class="text-center idr-total-row">
                                                 <td colspan="13" style="text-align: right; font-weight: bold;">Total in IDR</td>
-                                                <td>${totalInIDR.toLocaleString('id-ID')}</td>
+                                                <td id="totalInIDR">${totalInIDR.toLocaleString('id-ID')}</td>
                                             </tr>
                                         `;
                                         $('#temporaryItem tfoot').append(totalInIDRRow);
@@ -1821,13 +1835,6 @@
                                 });
                             }
                         });
-                    });
-                    // Mencegah tombol enter untuk accept
-                    $('#detailPurchaseOrderModal').on('keydown', 'input', function(event) {
-                        if (event.key === 'Enter') {
-                            event.preventDefault();
-                            return false;
-                        }
                     });
                 });
             });
