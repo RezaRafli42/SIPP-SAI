@@ -12,6 +12,7 @@ use App\Models\Items as Items;
 use App\Models\Logs as Logs;
 use App\Models\LPJ as LPJ;
 use App\Models\Services as Services;
+use App\Models\ReceiptItems as ReceiptItems;
 use App\Models\PurchaseRequests as PurchaseRequests;
 use App\Models\PurchaseRequestItems as PurchaseRequestItems;
 use App\Models\PurchaseRequestServices as PurchaseRequestServices;
@@ -143,6 +144,7 @@ class PurchaseOrdersController extends Controller
           ->whereIn('ship_warehouse_conditions.condition', ['Baru', 'Bekas Bisa Pakai', 'Rekondisi']);
       })
       ->select(
+        'purchase_order_items.id as poi_id',
         'purchase_order_items.quantity',
         'purchase_order_items.condition',
         'purchase_order_items.price',
@@ -158,6 +160,7 @@ class PurchaseOrdersController extends Controller
         DB::raw('IFNULL(SUM(ship_warehouse_conditions.quantity), 0) as total_quantity')  // Mengambil total available quantity
       )
       ->groupBy(
+        'purchase_order_items.id',
         'purchase_order_items.quantity',
         'purchase_order_items.condition',
         'purchase_order_items.price',
@@ -479,7 +482,6 @@ class PurchaseOrdersController extends Controller
       'services' => $purchaseRequestServices    // Data dari purchase_request_services
     ]);
   }
-
 
   public function getItemPurchaseOrders($purchaseOrderID)
   {
@@ -932,6 +934,55 @@ class PurchaseOrdersController extends Controller
       return response()->json([
         'error' => 'PR Number not found.'
       ], 404);
+    }
+  }
+
+  public function updatePurchaseOrderQuantities(Request $request)
+  {
+    $request->validate([
+      'quantities' => 'required|array',
+      'quantities.*.poi_id' => 'required|integer|exists:purchase_order_items,id',
+      'quantities.*.quantity' => 'required|integer|min:1',
+    ]);
+
+    try {
+      foreach ($request->quantities as $itemData) {
+        $item = PurchaseOrderItems::findOrFail($itemData['poi_id']);
+        $totalReceivedQuantity = ReceiptItems::where('purchase_order_item_id', $item->id)
+          ->sum('received_quantity');
+
+        // Jika quantity kurang dari total yang sudah diterima
+        if ($itemData['quantity'] < $totalReceivedQuantity) {
+          return redirect()->back()->with('swal-fail', 'Quantity cannot less than received quantity');
+        }
+
+        // Update quantity dan status
+        $item->quantity = $itemData['quantity'];
+        $item->status = ($totalReceivedQuantity >= $item->quantity) ? 'Selesai' : 'Belum Selesai';
+        $item->save();
+      }
+
+      // Update status Purchase Order jika semua item selesai
+      $PO = PurchaseOrders::findOrFail($item->purchase_order_id);
+      $allItemsCompleted = PurchaseOrderItems::where('purchase_order_id', $PO->id)
+        ->where('status', '!=', 'Selesai')
+        ->doesntExist();
+      $hasServices = PurchaseOrderServices::where('purchase_order_id', $PO->id)->exists();
+      $allServicesCompleted = $hasServices ? PurchaseOrderServices::where('purchase_order_id', $PO->id)
+        ->where('status', '!=', 'Selesai')
+        ->doesntExist() : true;
+
+      if ($allItemsCompleted && $allServicesCompleted) {
+        $PO->status = 'Selesai';
+      } else {
+        $PO->status = 'Sebagian Selesai';
+      }
+      $PO->save();
+
+      // Kembalikan pesan sukses jika berhasil
+      return response()->json(['success' => true]);
+    } catch (\Exception $e) {
+      return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
     }
   }
 }

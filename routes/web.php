@@ -115,6 +115,7 @@ Route::get('/print-purchaseOrders/{id}', [App\Http\Controllers\PurchaseOrdersCon
 Route::get('/findPurchaseOrders', [App\Http\Controllers\PurchaseOrdersController::class, 'findPurchaseOrders'])->name('findPurchaseOrders');
 Route::get('/get-services', [App\Http\Controllers\PurchaseOrdersController::class, 'getServices'])->name('getServices');
 Route::get('/get-ship', [App\Http\Controllers\PurchaseOrdersController::class, 'getShip'])->name('getShip');
+Route::post('/updatePurchaseOrderQuantities', [App\Http\Controllers\PurchaseOrdersController::class, 'updatePurchaseOrderQuantities'])->name('updatePurchaseOrderQuantities');
 // Receipts
 Route::get('/receipts', [App\Http\Controllers\ReceiptsController::class, 'indexReceipts'])->name('indexReceipts');
 Route::get('/get-supplier', [App\Http\Controllers\ReceiptsController::class, 'getSupplier'])->name('getSupplier');

@@ -1,5 +1,6 @@
 @extends('layouts.layout')
 <title>Purchase Order</title>
+<meta name="csrf-token" content="{{ csrf_token() }}">
 @section('main-panel')
     <div class="main-panel">
         <div class="content-wrapper">
@@ -31,7 +32,8 @@
                         <p class="card-title mb-2">Purchase Orders</p>
                         <div class="input-group mb-3">
                             <div class="input-group-append">
-                                <select name="shipSelect" id="shipSelect" class="form-control pr-1 rounded-left text-center ">
+                                <select name="shipSelect" id="shipSelect"
+                                    class="form-control pr-1 rounded-left text-center ">
                                     <option class="text-center" value="" selected>All</option>
                                     @foreach ($shipName as $ship)
                                         <option class="text-center" value="{{ $ship }}">
@@ -582,7 +584,6 @@
                                         <input readonly required name="ship_id" type="text" class="form-control"
                                             id="shipId">
                                     </div>
-
                                 </div>
                             </div>
                             <div class="form-group">
@@ -632,7 +633,7 @@
                                                 <th>No</th>
                                                 <th>PMS Code</th>
                                                 <th>Item Name</th>
-                                                <th>Quantity</th>
+                                                <th style="width: 6%">Quantity</th>
                                                 <th>Unit</th>
                                                 <th>Condition</th>
                                                 <th id="priceHeader">Price</th>
@@ -683,6 +684,7 @@
                             </div>
                             <div class="modal-footer">
                                 <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                                <button type="button" id="saveQuantitiesButton" class="btn btn-primary">Save</button>
                                 <button type="submit" id="submitButton" class="btn btn-success">Accept</button>
                     </form>
                     <form id="rejectPurchaseOrdersForm" method="POST" action="{{ url('rejectPurchaseOrders') }}">
@@ -690,7 +692,7 @@
                         <input type="hidden" name="po_id" id="po_id">
                         <button type="submit" id="rejectButton" class="btn btn-danger">Reject</button>
                     </form>
-                    <a class="btn btn-primary" href="#" id="print"><i class="fa-solid fa-print"></i>
+                    <a class="btn btn-warning" href="#" id="print"><i class="fa-solid fa-print"></i>
                         Print</a>
                 </div>
             </div>
@@ -726,7 +728,7 @@
                                     <td>${order.number || '-'}</td>
                                     <td>${formatDate(order.date)}</td>
                                     <td>${order.pic}</td>
-                                    <td>${order.item_count || '-'}</td> <!-- Menampilkan item_count atau '-' jika kosong -->
+                                    <td>${order.item_count || '-'}</td>
                                     <td>${order.status}</td>
                                     <td>
                                         <div class="btn-group" role="group">
@@ -1480,6 +1482,44 @@
         {{-- Detail Purchase Order Modal --}}
         <script>
             $(document).ready(function() {
+                // Menghitung perubahan quantity
+                function recalculateTotals() {
+                    let subTotal = 0;
+                    let totalPpn = 0;
+                    let totalPph = 0;
+
+                    $('#detailPurchaseOrderModal #temporaryItem tbody tr').each(function() {
+                        const $row = $(this);
+                        const quantity = parseFloat($row.find('.quantity-input').val()) || 0;
+                        const price = parseFloat($row.find('.price-cell').data('price')) || 0;
+                        const ppn = parseFloat($row.find('.ppn-cell').data('ppn')) || 0;
+                        const pph = parseFloat($row.find('.pph-cell').data('pph')) || 0;
+
+                        // Hitung ulang amount untuk setiap item
+                        const amount = quantity * price;
+                        const ppnAmount = amount * (ppn / 100);
+                        const pphAmount = amount * (pph / 100);
+                        const amountWithTaxes = amount + ppnAmount + pphAmount;
+
+                        // Update jumlah untuk item ini di tabel
+                        $row.find('.amount-cell').text(amountWithTaxes.toLocaleString('id-ID'));
+
+                        // Tambahkan amount item ini ke subtotal dan total PPN serta PPh
+                        subTotal += amount;
+                        totalPpn += ppnAmount;
+                        totalPph += pphAmount;
+                    });
+
+                    // Update total keseluruhan di footer
+                    $('#detailPurchaseOrderModal #subTotal').text(subTotal.toLocaleString('id-ID'));
+                    $('#detailPurchaseOrderModal #totalPpn').text(totalPpn.toLocaleString('id-ID'));
+                    $('#detailPurchaseOrderModal #totalPph').text(totalPph.toLocaleString('id-ID'));
+                    $('#detailPurchaseOrderModal #totalAll').text((subTotal + totalPpn + totalPph).toLocaleString(
+                        'id-ID'));
+                }
+                $(document).on('input', '.quantity-input', function() {
+                    recalculateTotals();
+                });
                 $('#detailPurchaseOrderModal').on('show.bs.modal', function(e) {
                     var button = $(e.relatedTarget);
                     var itemData = button.data('purchaseorder');
@@ -1537,27 +1577,30 @@
                                             .toLocaleString('id-ID');
 
                                         var row = `
-                                                <tr class="text-center ${rowClass}">
-                                                    <td>${index + 1}</td>
-                                                    <td>${item.item_pms}</td>
-                                                    <td>${item.item_name}</td>
-                                                    <td>${item.quantity}</td>
-                                                    <td>${item.item_unit}</td>
-                                                    <td>${item.condition}</td>
-                                                    <td>${parseFloat(item.price).toLocaleString('id-ID')}</td>
-                                                    <td>${item.ppn}</td>
-                                                    <td></td>
-                                                    <td>${item.item_option}</td>
-                                                    <td>${item.utility}</td>
-                                                    <td>
-                                                        <a href="#" class="pr-link" data-pr-number="${item.purchase_request_number}" data-ship-id=${item.ship_id}>
-                                                            ${item.purchase_request_number}
-                                                        </a>
-                                                    </td>
-                                                    <td>${item.status}</td>
-                                                    <td>${amountWithPpn.toLocaleString('id-ID')}</td>
-                                                </tr>
-                                            `;
+                                            <tr class="text-center ${rowClass}" data-poi-id="${item.poi_id}">
+                                                <td>${index + 1}</td>
+                                                <td>${item.item_pms}</td>
+                                                <td>${item.item_name}</td>
+                                                <td>
+                                                    <input type="number" class="form-control text-center quantity-input" value="${item.quantity}" 
+                                                        ${item.status === 'Selesai' ? 'readonly' : ''}/>
+                                                </td>
+                                                <td>${item.item_unit}</td>
+                                                <td>${item.condition}</td>
+                                                <td class="price-cell" data-price="${item.price}">${parseFloat(item.price).toLocaleString('id-ID')}</td>
+                                                <td class="ppn-cell" data-ppn="${item.ppn}">${item.ppn}</td>
+                                                <td></td>
+                                                <td>${item.item_option}</td>
+                                                <td>${item.utility}</td>
+                                                <td>
+                                                    <a href="#" class="pr-link" data-pr-number="${item.purchase_request_number}" data-ship-id="${item.ship_id}">
+                                                        ${item.purchase_request_number}
+                                                    </a>
+                                                </td>
+                                                <td>${item.status}</td>
+                                                <td class="amount-cell">${amountWithPpn.toLocaleString('id-ID')}</td>
+                                            </tr>
+                                        `;
                                         $('#temporaryItem tbody').append(row);
 
                                         // Handle currency conversion if not in IDR
@@ -1712,6 +1755,78 @@
                         if (e.ctrlKey) {
                             e.preventDefault(); // Prevent the default anchor tag behavior
                             window.open(`/purchaseOrders`, '_blank');
+                        }
+                    });
+
+                    $('#detailPurchaseOrderModal #saveQuantitiesButton').off('click').on('click', function() {
+                        let updatedQuantities = [];
+
+                        $('#detailPurchaseOrderModal #temporaryItem tbody tr').each(function() {
+                            const $row = $(this);
+                            const poiId = $row.data('poi-id');
+                            const quantity = parseFloat($row.find('.quantity-input').val()) ||
+                                0;
+
+                            if (poiId) {
+                                updatedQuantities.push({
+                                    poi_id: poiId,
+                                    quantity: quantity
+                                });
+                            }
+                        });
+
+                        // Munculkan konfirmasi sebelum mengirim data
+                        Swal.fire({
+                            title: 'Are you sure?',
+                            text: 'Do you really want to update the quantities?',
+                            icon: 'warning',
+                            showCancelButton: true,
+                            confirmButtonColor: '#46a146',
+                            cancelButtonColor: '#d33',
+                            confirmButtonText: 'Yes, update it!',
+                            cancelButtonText: 'Cancel'
+                        }).then((result) => {
+                            if (result.isConfirmed) {
+                                // Jika pengguna mengklik "Yes", jalankan AJAX untuk update
+                                $.ajax({
+                                    url: '/updatePurchaseOrderQuantities',
+                                    method: 'POST',
+                                    data: {
+                                        _token: $('meta[name="csrf-token"]').attr(
+                                            'content'),
+                                        quantities: updatedQuantities
+                                    },
+                                    success: function(response) {
+                                        if (response.success) {
+                                            $('#detailPurchaseOrderModal').modal(
+                                                'hide');
+                                            Swal.fire({
+                                                title: 'PO updated successfully!',
+                                                icon: 'success',
+                                                showCancelButton: false,
+                                                confirmButtonColor: '#46a146',
+                                                confirmButtonText: 'OK'
+                                            });
+                                        } else {
+                                            Swal.fire({
+                                                title: 'Failed to update quantities!',
+                                                text: 'Quantities cannot be less than received quantity.',
+                                                icon: 'error',
+                                                showCancelButton: false,
+                                                confirmButtonColor: '#46a146',
+                                                confirmButtonText: 'OK'
+                                            });
+                                        }
+                                    },
+                                });
+                            }
+                        });
+                    });
+                    // Mencegah tombol enter untuk accept
+                    $('#detailPurchaseOrderModal').on('keydown', 'input', function(event) {
+                        if (event.key === 'Enter') {
+                            event.preventDefault();
+                            return false;
                         }
                     });
                 });
