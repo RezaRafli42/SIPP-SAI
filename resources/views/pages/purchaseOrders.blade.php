@@ -1499,7 +1499,7 @@
                         const amount = quantity * price;
                         const ppnAmount = amount * (ppn / 100);
                         const pphAmount = amount * (pph / 100);
-                        const amountWithTaxes = amount + ppnAmount + pphAmount;
+                        const amountWithTaxes = amount + ppnAmount - pphAmount;
 
                         // Update jumlah untuk item ini di tabel
                         $row.find('.amount-cell').text(amountWithTaxes.toLocaleString('id-ID'));
@@ -1514,7 +1514,7 @@
                     $('#detailPurchaseOrderModal #subTotal').text(subTotal.toLocaleString('id-ID'));
                     $('#detailPurchaseOrderModal #totalPpn').text(totalPpn.toLocaleString('id-ID'));
                     $('#detailPurchaseOrderModal #totalPph').text(totalPph.toLocaleString('id-ID'));
-                    $('#detailPurchaseOrderModal #totalAll').text((subTotal + totalPpn + totalPph).toLocaleString(
+                    $('#detailPurchaseOrderModal #totalAll').text((subTotal + totalPpn - totalPph).toLocaleString(
                         'id-ID'));
                 }
                 $(document).on('input', '.quantity-input', function() {
@@ -1647,7 +1647,7 @@
                                         totalPpn += ppnAmount;
                                         totalPph += pphAmount;
 
-                                        var amountWithTaxes = amount + ppnAmount +
+                                        var amountWithTaxes = amount + ppnAmount -
                                             pphAmount;
 
                                         // Handle service fields yang mungkin null (misalnya dari service-list)
@@ -1711,7 +1711,7 @@
                                     $('#detailPurchaseOrderModal #totalPph').text(totalPph
                                         .toLocaleString('id-ID'));
                                     $('#detailPurchaseOrderModal #totalAll').text((
-                                            subTotal + totalPpn + totalPph)
+                                            subTotal + totalPpn - totalPph)
                                         .toLocaleString('id-ID'));
 
                                     // Display total in IDR if necessary
@@ -1931,7 +1931,7 @@
                                         totalPpn += ppnAmount;
                                         totalPph += pphAmount;
 
-                                        var amountWithTaxes = amount + ppnAmount +
+                                        var amountWithTaxes = amount + ppnAmount -
                                             pphAmount;
                                         totalInIDR += amount; // Update total langsung
 
@@ -1966,7 +1966,7 @@
                                     'id-ID'));
                                 $('#detailLPJModal #totalPph').text(totalPph.toLocaleString(
                                     'id-ID'));
-                                $('#detailLPJModal #totalAll').text((subTotal + totalPpn + totalPph)
+                                $('#detailLPJModal #totalAll').text((subTotal + totalPpn - totalPph)
                                     .toLocaleString('id-ID'));
                             },
                             error: function() {
@@ -2255,7 +2255,7 @@
                                 var baseAmount = service.price * 1; // Harga pokok
                                 var ppnAmount = baseAmount * (service.ppn / 100); // PPN
                                 var pphAmount = baseAmount * (service.pph / 100); // PPh
-                                var serviceAmount = baseAmount + ppnAmount + pphAmount;
+                                var serviceAmount = baseAmount + ppnAmount - pphAmount;
                                 var formattedPph = parseFloat(service.pph).toString();
 
                                 newRow.append($('<td></td>').text('Jasa'))
@@ -2318,7 +2318,7 @@
                         var ppnAmount = amount * (ppn / 100);
                         var pphAmount = amount * (pph / 100);
 
-                        var totalRowAmount = amount + ppnAmount + pphAmount;
+                        var totalRowAmount = amount + ppnAmount - pphAmount;
 
                         // Update kolom amount per baris dengan format rupiah
                         $(this).find('td:eq(12)').text(totalRowAmount.toLocaleString('id-ID'));
@@ -2332,7 +2332,7 @@
                     $('#addLPJModal #subTotalLPJ').text(totalAmount.toLocaleString('id-ID'));
                     $('#addLPJModal #totalPpnLPJ').text(totalPpn.toLocaleString('id-ID'));
                     $('#addLPJModal #totalPphLPJ').text(totalPph.toLocaleString('id-ID'));
-                    $('#addLPJModal #totalAllLPJ').text((totalAmount + totalPpn + totalPph).toLocaleString('id-ID'));
+                    $('#addLPJModal #totalAllLPJ').text((totalAmount + totalPpn - totalPph).toLocaleString('id-ID'));
                 }
 
                 function toggleSubmitButton() {
