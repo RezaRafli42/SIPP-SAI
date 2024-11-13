@@ -42,7 +42,7 @@
                                     <i class="mdi mdi-database-plus pr-2"></i>Add Office Warehouse Data
                                 </button>
                                 <button type="button" class="btn btn-primary btn-icon-text" data-toggle="modal"
-                                    data-target="#addOfficeWarehouseModal">
+                                    data-target="#officeWarehouseHistoryModal">
                                     <i class="mdi mdi-database pr-2"></i>Warehouse Item History
                                 </button>
                             </div>
@@ -219,6 +219,65 @@
                 </div>
             </div>
         </div>
+
+        {{-- History Modal --}}
+        <div class="modal fade" id="officeWarehouseHistoryModal" tabindex="-1" role="dialog"
+            aria-labelledby="officeWarehouseHistoryModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-custom-medium" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="officeWarehouseHistoryModalLabel">Office Warehouse History</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <form id="addOfficeWarehouseForm" method="POST" action="{{ url('addOfficeWarehouse') }}"
+                        enctype="multipart/form-data">
+                        @csrf
+                        <div class="modal-body">
+                            <div style="max-height: 510px; overflow-y: auto">
+                                <table class="table table-bordered text-center" data-toggle="table" data-sortable="true">
+                                    <thead
+                                        style="position: sticky; top: 0; background-color: white; z-index: 10; border-bottom: solid 1px black;">
+                                        <tr>
+                                            <th style="font-size: 1rem" data-sortable="true">No</th>
+                                            <th style="font-size: 1rem" data-sortable="true">Category</th>
+                                            <th style="font-size: 1rem" data-sortable="true">Source/Destination</th>
+                                            <th style="font-size: 1rem" data-sortable="true">Item PMS</th>
+                                            <th style="font-size: 1rem" data-sortable="true">Item Name</th>
+                                            <th style="font-size: 1rem" data-sortable="true">Quantity Before</th>
+                                            <th style="font-size: 1rem" data-sortable="true">Quantity After</th>
+                                            <th style="font-size: 1rem" data-sortable="true">Transaction Date</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach ($history as $index => $record)
+                                            <tr>
+                                                <td>{{ $index + 1 }}</td>
+                                                <td
+                                                    style="color: {{ $record->transaction_type == 'In' ? 'green' : 'red' }}; font-weight: bold; font-size:1rem;">
+                                                    {{ $record->transaction_type }}
+                                                </td>
+                                                <td>{{ $record->source_or_destination }}</td>
+                                                <td>{{ $record->items->item_pms }}</td>
+                                                <td>{{ $record->items->item_name }}</td>
+                                                <td>{{ $record->quantity_before }}</td>
+                                                <td>{{ $record->quantity_after }}</td>
+                                                <td>{{ \Carbon\Carbon::parse($record->transaction_date)->format('d/m/Y') }}
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
     @endsection
     @section('script')
         {{-- Search --}}
@@ -374,5 +433,9 @@
                 modal.find('.modal-body #condition').val(officeWarehouse.condition);
             });
         </script>
+
+        {{-- Table Sort --}}
+        {{-- Jika menggunakan sort maka css untuk pewarnaan text category tidak bekerja --}}
+        {{-- <script src="https://cdn.jsdelivr.net/npm/bootstrap-table/dist/bootstrap-table.min.js"></script> --}}
     @endsection
 </div>

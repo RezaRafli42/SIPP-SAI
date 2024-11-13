@@ -6,6 +6,7 @@ use App\Models\Ships as Ships;
 use App\Models\OfficeWarehouse as OfficeWarehouse;
 use App\Models\Items as Items;
 use App\Models\Logs as Logs;
+use App\Models\WarehouseHistory as WarehouseHistory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
@@ -17,7 +18,7 @@ class OfficeWarehouseController extends Controller
 {
   public function indexOfficeWarehouse()
   {
-    $items = Items::orderBy('item_pms')->get(); //Untuk dropdown tambah barang kantor
+    $items = Items::orderBy('item_pms')->get();
     $officeWarehouses = OfficeWarehouse::join('items', 'office_warehouse.item_id', '=', 'items.id')
       ->select(
         'items.*',
@@ -25,6 +26,7 @@ class OfficeWarehouseController extends Controller
       )
       ->orderBy('items.item_pms', 'asc')
       ->get();
+    $history = WarehouseHistory::where('warehouse_type', 'office')->orderBy('transaction_date', 'ASC')->with('items')->get();
 
     // Tentukan urutan kondisi
     $conditionOrder = ['Baru' => 1, 'Bekas Bisa Pakai' => 2, 'Bekas Tidak Bisa Pakai' => 3, 'Rekondisi' => 4];
@@ -45,6 +47,7 @@ class OfficeWarehouseController extends Controller
     return view('pages.officeWarehouse', [
       'groupedOfficeWarehouses' => $groupedOfficeWarehouses,
       'barang' => $items,
+      'history' => $history,
     ]);
   }
 

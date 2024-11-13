@@ -14,6 +14,7 @@ use App\Models\PurchaseRequests as PurchaseRequests;
 use App\Models\PurchaseRequestItems as PurchaseRequestItems;
 use App\Models\PurchaseRequestServices as PurchaseRequestServices;
 use App\Models\Logs as Logs;
+use App\Models\WarehouseHistory as WarehouseHistory;
 use Illuminate\Support\Facades\Log;
 use App\Models\Ships as Ships;
 use App\Models\PurchaseOrders as PurchaseOrders;
@@ -372,6 +373,38 @@ class ReceiptsController extends Controller
         'user_id' => Auth::user()->id,
         'action' => 'created Receipt data ' . $request->receipt_number . ' in the Office Warehouse.',
       ]);
+
+      if (is_array($request->item_id) && count($request->item_id) > 0) {
+        foreach ($request->item_id as $index => $purchaseOrderItemId) {
+          $purchaseOrderItem = PurchaseOrderItems::where('id', $purchaseOrderItemId)->first();
+          $purchaseRequestItem = PurchaseRequestItems::where('id', $purchaseOrderItem->purchase_request_item_id)->first();
+
+          $itemId = $purchaseRequestItem->item_id;
+          $condition = $purchaseOrderItem->condition;
+
+          // Mendapatkan quantity sebelum dan setelah perubahan
+          $officeWarehouseItem = OfficeWarehouse::where('item_id', $itemId)
+            ->where('condition', $condition)
+            ->first();
+
+          if ($officeWarehouseItem) {
+            $quantityBefore = $officeWarehouseItem->quantity - $request->received_quantity[$index];
+            $quantityAfter = $officeWarehouseItem->quantity;
+
+            WarehouseHistory::create([
+              'warehouse_type' => 'office',
+              'ship_id' => null, // Untuk gudang kantor
+              'item_id' => $itemId,
+              'condition' => $condition,
+              'transaction_type' => 'In', // Karena ini penerimaan barang
+              'source_or_destination' => $request->receipt_number, // Nomor penerimaan sebagai sumber
+              'quantity_before' => $quantityBefore,
+              'quantity_after' => $quantityAfter,
+              'transaction_date' => now(),
+            ]);
+          }
+        }
+      }
 
       DB::commit();
 
