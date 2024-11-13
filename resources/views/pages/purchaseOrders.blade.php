@@ -506,6 +506,7 @@
                                             <th>Utility</th>
                                             <th>PR No.</th>
                                             <th>Draft No.</th>
+                                            <th>Supplier</th>
                                             <th id="ammountHeader">Amount</th>
                                         </tr>
                                     </thead>
@@ -740,10 +741,6 @@
                                 </tr>`;
                             tableBody.append(row);
                         });
-                    } else {
-                        tableBody.html(
-                            '<tr class="text-center"><td colspan="12" class="text-center text-muted">No records found</td></tr>'
-                        );
                     }
                 }
 
@@ -823,10 +820,6 @@
                         </tr>`;
                                         tableBody.append(row);
                                     });
-                                } else {
-                                    tableBody.html(
-                                        '<tr class="text-center"><td colspan="12" class="text-center text-muted">No records found</td></tr>'
-                                    );
                                 }
                             },
                             error: function(xhr) {
@@ -1905,6 +1898,7 @@
                                                     </a>
                                                 </td>
                                                 <td>${item.purchase_order_number}</td>
+                                                <td>${item.supplier_name}</td>
                                                 <td>${amountWithPpn.toLocaleString('id-ID')}</td>
                                             </tr>
                                         `;
@@ -1917,7 +1911,7 @@
                                 if (response.services && response.services.length > 0) {
                                     $('#detailLPJModal #temporaryItem tbody').append(`
                                         <tr class="text-center jasa-separator">
-                                            <td colspan="14"><strong>Services (Jasa)</strong></td>
+                                            <td colspan="15"><strong>Services (Jasa)</strong></td>
                                         </tr>
                                     `);
 
@@ -1941,7 +1935,6 @@
                                         var amountWithTaxes = amount + ppnAmount -
                                             pphAmount;
                                         totalInIDR += amount; // Update total langsung
-
                                         // Menampilkan hasil pada tabel
                                         var row = `
                                                 <tr class="text-center">
@@ -1958,6 +1951,7 @@
                                                     <td>${service.utility || ''}</td>
                                                     <td>${service.purchase_request_number || ''}</td>
                                                     <td>${service.purchase_order_number}</td>
+                                                    <td>${service.supplier_name}</td>
                                                     <td>${amountWithTaxes.toLocaleString('id-ID')}</td>
                                                 </tr>
                                             `;

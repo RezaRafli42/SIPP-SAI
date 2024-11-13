@@ -240,6 +240,7 @@ class PurchaseOrdersController extends Controller
         $join->on('ship_warehouse_conditions.ship_warehouse_id', '=', 'ship_warehouses.id')
           ->whereIn('ship_warehouse_conditions.condition', ['Baru', 'Bekas Bisa Pakai', 'Rekondisi']);
       })
+      ->leftJoin('suppliers', 'purchase_orders.supplier_id', '=', 'suppliers.id')
       ->select(
         'purchase_orders.purchase_order_number',
         'purchase_order_items.quantity',
@@ -254,7 +255,8 @@ class PurchaseOrdersController extends Controller
         DB::raw('IFNULL(purchase_request_items.utility, "undefined") as utility'),
         DB::raw('IFNULL(purchase_requests.purchase_request_number, "undefined") as purchase_request_number'),
         'ship_warehouses.minimum_quantity',
-        DB::raw('IFNULL(SUM(ship_warehouse_conditions.quantity), 0) as total_quantity')
+        DB::raw('IFNULL(SUM(ship_warehouse_conditions.quantity), 0) as total_quantity'),
+        'suppliers.supplier_name'
       )
       ->groupBy(
         'purchase_orders.purchase_order_number',
@@ -270,7 +272,8 @@ class PurchaseOrdersController extends Controller
         'purchase_request_items.utility',
         'purchase_requests.purchase_request_number',
         'ship_warehouses.minimum_quantity',
-        'purchase_request_items.id'
+        'purchase_request_items.id',
+        'suppliers.supplier_name'
       )
       ->get();
 
@@ -281,6 +284,7 @@ class PurchaseOrdersController extends Controller
       ->leftJoin('services as pr_services', 'purchase_request_services.service_id', '=', 'pr_services.id')
       ->leftJoin('services as manual_services', 'purchase_order_services.service_id', '=', 'manual_services.id')
       ->leftJoin('purchase_requests', 'purchase_request_services.purchase_request_id', '=', 'purchase_requests.id')
+      ->leftJoin('suppliers', 'purchase_orders.supplier_id', '=', 'suppliers.id')
       ->select(
         'purchase_orders.purchase_order_number',
         'purchase_order_services.price',
@@ -290,7 +294,8 @@ class PurchaseOrdersController extends Controller
         DB::raw('COALESCE(pr_services.service_code, manual_services.service_code) as service_code'),
         DB::raw('COALESCE(pr_services.service_name, manual_services.service_name) as service_name'),
         'purchase_order_services.utility',
-        DB::raw('IFNULL(purchase_requests.purchase_request_number, "") as purchase_request_number')
+        DB::raw('IFNULL(purchase_requests.purchase_request_number, "") as purchase_request_number'),
+        'suppliers.supplier_name'
       )
       ->groupBy(
         'purchase_orders.purchase_order_number',
@@ -303,7 +308,8 @@ class PurchaseOrdersController extends Controller
         'pr_services.service_name',
         'manual_services.service_name',
         'purchase_order_services.utility',
-        'purchase_requests.purchase_request_number'
+        'purchase_requests.purchase_request_number',
+        'suppliers.supplier_name'
       )
       ->get();
 
