@@ -24,52 +24,79 @@ class ShipWarehousesController extends Controller
 {
   public function addShipWarehouses(Request $request)
   {
-    // Find the ship by name
-    $ship = Ships::where('ship_name', $request->ship_id)->first();
+    // Mulai transaksi database
+    DB::beginTransaction();
 
-    if (!$ship) {
-      return redirect()->back()->with('swal-fail', 'Ship not found');
-    }
+    try {
+      // Temukan kapal berdasarkan nama
+      $ship = Ships::where('ship_name', $request->ship_id)->first();
+      if (!$ship) {
+        throw new \Exception('Ship not found');
+      }
 
-    // Find the item by id
-    $item = Items::find($request->item_id);
+      // Temukan item berdasarkan ID
+      $item = Items::find($request->item_id);
+      if (!$item) {
+        throw new \Exception('Item not found');
+      }
 
-    if (!$item) {
-      return redirect()->back()->with('swal-fail', 'Item not found');
-    }
-
-    $shipsID = Ships::where('ship_name', $request->ship_id)->first();
-    $shipWarehouse = ShipWarehouses::create([
-      'ship_id' => $shipsID->id,
-      'item_id' => $request->item_id,
-      'minimum_quantity' => $request->minimum_quantity,
-      'department' => $request->department,
-      'position_date' => $request->position_date,
-      'equipment_category' => $request->equipment_category,
-      'tool_category' => $request->tool_category,
-      'type' => $request->type,
-      'certification' => $request->certification,
-      'last_maintenance_date' => $request->last_maintenance_date,
-      'last_inspection_date' => $request->last_inspection_date,
-      'description' => $request->description,
-    ]);
-
-    $conditions = ['Baru', 'Bekas Bisa Pakai', 'Bekas Tidak Bisa Pakai', 'Rekondisi'];
-    foreach ($conditions as $condition) {
-      ShipWarehouseConditions::create([
-        'ship_warehouse_id' => $shipWarehouse->id,
-        'condition' => $condition,
-        'quantity' => 0,
-        'location' => '', // atau Anda dapat memasukkan lokasi lain jika berbeda
+      // Tambahkan data Ship Warehouse
+      $shipWarehouse = ShipWarehouses::create([
+        'ship_id' => $ship->id,
+        'item_id' => $request->item_id,
+        'minimum_quantity' => $request->minimum_quantity,
+        'department' => $request->department,
+        'position_date' => $request->position_date,
+        'equipment_category' => $request->equipment_category,
+        'tool_category' => $request->tool_category,
+        'type' => $request->type,
+        'certification' => $request->certification,
+        'last_maintenance_date' => $request->last_maintenance_date,
+        'last_inspection_date' => $request->last_inspection_date,
+        'description' => $request->description,
       ]);
+
+      // Buat kondisi barang baru dan catat Warehouse History
+      $conditions = ['Baru', 'Bekas Bisa Pakai', 'Bekas Tidak Bisa Pakai', 'Rekondisi'];
+      foreach ($conditions as $condition) {
+        $conditionRecord = ShipWarehouseConditions::create([
+          'ship_warehouse_id' => $shipWarehouse->id,
+          'condition' => $condition,
+          'quantity' => 0,
+          'location' => '', // atau Anda dapat memasukkan lokasi lain jika berbeda
+        ]);
+
+        // Tambahkan ke Warehouse History
+        WarehouseHistory::create([
+          'warehouse_type' => 'ship',
+          'ship_id' => $ship->id,
+          'item_id' => $shipWarehouse->item_id,
+          'condition' => $condition,
+          'transaction_type' => 'In', // Barang ditambahkan
+          'source_or_destination' => 'Item Added',
+          'quantity_before' => 0, // Awalnya 0
+          'quantity_after' => 0, // Tetap 0 karena belum ada stok
+          'transaction_date' => now(),
+        ]);
+      }
+
+      // Catat log aktivitas
+      Logs::create([
+        'user_id' => Auth::user()->id,
+        'action' => 'added data ' . $item->item_name . ' (' . $item->item_pms . ') to the ' . $ship->ship_name . ' Warehouse.',
+      ]);
+
+      // Commit transaksi
+      DB::commit();
+
+      return redirect()->back()->with('swal-success', 'Item added to Ship Warehouse successfully');
+    } catch (\Exception $e) {
+      // Rollback jika terjadi kesalahan
+      DB::rollBack();
+
+      // Kembalikan pesan error
+      return redirect()->back()->with('swal-fail', 'Failed to add item: ' . $e->getMessage());
     }
-
-    Logs::create([
-      'user_id' => Auth::user()->id,
-      'action' => 'added data ' . $item->item_name . ' (' . $item->item_pms . ') to the ' . $ship->ship_name . ' Warehouse.',
-    ]);
-
-    return redirect()->back()->with('swal-success', 'Item added to Ship Warehouse successfully');
   }
 
   public function updateShipWarehouses(Request $request)
@@ -111,143 +138,251 @@ class ShipWarehousesController extends Controller
 
   public function updateShipWarehouseCondition(Request $request)
   {
-    // Find the ship warehouse condition by ID
-    $shipWarehouseCondition = ShipWarehouseConditions::find($request->condition_id);
+    // Mulai transaksi database
+    DB::beginTransaction();
 
-    // Retrieve related ship and item details
-    $shipWarehouse = ShipWarehouses::find($shipWarehouseCondition->ship_warehouse_id);
-    $ship = Ships::find($shipWarehouse->ship_id);
-    $item = Items::find($shipWarehouse->item_id);
+    try {
+      // Temukan kondisi gudang kapal berdasarkan ID
+      $shipWarehouseCondition = ShipWarehouseConditions::findOrFail($request->condition_id);
 
-    // Update ship warehouse condition details
-    $shipWarehouseCondition->update([
-      'quantity' => $request->quantity,
-      'location' => $request->location,
-    ]);
+      // Ambil data gudang kapal dan item terkait
+      $shipWarehouse = ShipWarehouses::find($shipWarehouseCondition->ship_warehouse_id);
+      $ship = Ships::find($shipWarehouse->ship_id);
+      $item = Items::find($shipWarehouse->item_id);
 
-    // Log the update
-    Logs::create([
-      'user_id' => Auth::user()->id,
-      'action' => 'updated data ' . $item->item_name . ' (' . $item->item_pms . ') with condition ' . $shipWarehouseCondition->condition . ' in the ' . $ship->ship_name . ' Warehouse.',
-    ]);
+      // Simpan kuantitas sebelum perubahan
+      $quantityBefore = $shipWarehouseCondition->quantity;
 
-    // Redirect back with success message
-    return redirect()->back()->with('swal-success', 'Ship warehouse data updated successfully');
+      // Perbarui data kondisi gudang
+      $shipWarehouseCondition->update([
+        'quantity' => $request->quantity,
+        'location' => $request->location,
+      ]);
+
+      // Tambahkan ke Warehouse History
+      WarehouseHistory::create([
+        'warehouse_type' => 'ship',
+        'ship_id' => $ship->id,
+        'item_id' => $shipWarehouse->item_id,
+        'condition' => $shipWarehouseCondition->condition,
+        'transaction_type' => $request->quantity > $quantityBefore ? 'In' : 'Out',
+        'source_or_destination' => 'Item Updated',
+        'quantity_before' => $quantityBefore,
+        'quantity_after' => $request->quantity,
+        'transaction_date' => now(),
+      ]);
+
+      // Catat log aktivitas
+      Logs::create([
+        'user_id' => Auth::user()->id,
+        'action' => 'updated data ' . $item->item_name . ' (' . $item->item_pms . ') with condition ' . $shipWarehouseCondition->condition . ' in the ' . $ship->ship_name . ' Warehouse.',
+      ]);
+
+      // Commit transaksi
+      DB::commit();
+
+      return redirect()->back()->with('swal-success', 'Ship warehouse data updated successfully');
+    } catch (\Exception $e) {
+      // Rollback jika terjadi kesalahan
+      DB::rollBack();
+
+      // Kembalikan pesan error
+      return redirect()->back()->with('swal-fail', 'Failed to update ship warehouse condition: ' . $e->getMessage());
+    }
   }
 
   public function deleteShipWarehouses($id)
   {
-    // Find the ship warehouse by ID
-    $shipWarehouse = ShipWarehouses::findOrFail($id);
+    // Mulai transaksi database
+    DB::beginTransaction();
 
-    // Retrieve related ship and item details
-    $ship = Ships::find($shipWarehouse->ship_id);
-    $item = Items::find($shipWarehouse->item_id);
+    try {
+      // Temukan ship warehouse berdasarkan ID
+      $shipWarehouse = ShipWarehouses::findOrFail($id);
 
-    // Retrieve all conditions related to the ship warehouse
-    $conditions = ShipWarehouseConditions::where('ship_warehouse_id', $id)->get();
+      // Ambil data kapal dan item terkait
+      $ship = Ships::find($shipWarehouse->ship_id);
+      $item = Items::find($shipWarehouse->item_id);
 
-    // Loop through each condition to delete dependent records in all related tables
-    foreach ($conditions as $condition) {
-      // Delete records in ship_warehouse_usages
-      ShipWarehouseUsages::where('ship_warehouse_condition_id', $condition->id)->delete();
-      // Delete records in ship_warehouse_send_office
-      ShipWarehouseSendOffice::where('ship_warehouse_condition_id', $condition->id)->delete();
+      // Ambil semua kondisi terkait dengan ship warehouse
+      $conditions = ShipWarehouseConditions::where('ship_warehouse_id', $id)->get();
+
+      // Loop melalui setiap kondisi untuk mencatat perubahan di Warehouse History
+      foreach ($conditions as $condition) {
+        // Catat ke Warehouse History sebelum menghapus kondisi
+        WarehouseHistory::create([
+          'warehouse_type' => 'ship',
+          'ship_id' => $ship->id,
+          'item_id' => $shipWarehouse->item_id,
+          'condition' => $condition->condition,
+          'transaction_type' => 'Out', // Karena barang dihapus
+          'source_or_destination' => 'Item Deleted',
+          'quantity_before' => $condition->quantity,
+          'quantity_after' => 0, // Karena semua data dihapus
+          'transaction_date' => now(),
+        ]);
+
+        // Hapus data terkait kondisi ini
+        ShipWarehouseUsages::where('ship_warehouse_condition_id', $condition->id)->delete();
+        ShipWarehouseSendOffice::where('ship_warehouse_condition_id', $condition->id)->delete();
+      }
+
+      // Hapus kondisi terkait
+      ShipWarehouseConditions::where('ship_warehouse_id', $id)->delete();
+
+      // Hapus ship warehouse
+      $shipWarehouse->delete();
+
+      // Log penghapusan
+      Logs::create([
+        'user_id' => Auth::user()->id,
+        'action' => 'deleted data ' . $item->item_name . ' (' . $item->item_pms . ') from the ' . $ship->ship_name . ' Warehouse.',
+      ]);
+
+      // Commit transaksi
+      DB::commit();
+
+      return redirect()->back()->with('swal-success', 'Ship warehouse deleted successfully');
+    } catch (\Exception $e) {
+      // Rollback jika terjadi kesalahan
+      DB::rollBack();
+
+      // Kembalikan pesan error
+      return redirect()->back()->with('swal-fail', 'Failed to delete ship warehouse: ' . $e->getMessage());
     }
-
-    // Delete the associated conditions
-    ShipWarehouseConditions::where('ship_warehouse_id', $id)->delete();
-
-    // Delete the ship warehouse
-    $shipWarehouse->delete();
-
-    // Log the deletion
-    Logs::create([
-      'user_id' => Auth::user()->id,
-      'action' => 'deleted data ' . $item->item_name . ' (' . $item->item_pms . ') from the ' . $ship->ship_name . 'Warehouse.',
-    ]);
-
-    // Redirect back with success message
-    return redirect()->back()->with('swal-success', 'Ship warehouse deleted successfully');
   }
 
   public function addShipWarehouseUsages(Request $request)
   {
-    // Ambil data condition berdasarkan id
-    $condition = ShipWarehouseConditions::find($request->condition_id);
+    // Mulai transaksi database
+    DB::beginTransaction();
 
-    // Retrieve related ship and item details
-    $shipWarehouse = ShipWarehouses::find($condition->ship_warehouse_id);
-    $ship = Ships::find($shipWarehouse->ship_id);
-    $item = Items::find($shipWarehouse->item_id);
+    try {
+      // Ambil data condition berdasarkan id
+      $condition = ShipWarehouseConditions::find($request->condition_id);
 
-    // Proses unggah foto jika ada
-    if ($request->hasFile('photo')) {
-      $file = $request->file('photo');
-      $extension = $file->getClientOriginalExtension();
-      $filename = uniqid() . '.' . $extension;
-      $path = public_path('images/uploads/shipWarehouseUsage-photos/' . $filename);
-      // Set maximum file size to 150KB (150,000 bytes)
-      $maxFileSize = 150000; // 150KB
-      // Get file size
-      $fileSize = $file->getSize();
-      // Create new ImageManager instance with imagick driver
-      $manager = new ImageManager(['driver' => 'imagick']);
-      if ($fileSize > $maxFileSize) {
-        // Compress and save the image
-        $image = $manager->make($file);
-        $image->resize(800, null, function ($constraint) {
-          $constraint->aspectRatio();
-        })->save($path, 75); // Save with 75% quality
+      // Retrieve related ship and item details
+      $shipWarehouse = ShipWarehouses::find($condition->ship_warehouse_id);
+      $ship = Ships::find($shipWarehouse->ship_id);
+      $item = Items::find($shipWarehouse->item_id);
+
+      // Proses unggah foto jika ada
+      if ($request->hasFile('photo')) {
+        $file = $request->file('photo');
+        $extension = $file->getClientOriginalExtension();
+        $filename = uniqid() . '.' . $extension;
+        $path = public_path('images/uploads/shipWarehouseUsage-photos/' . $filename);
+        // Set maximum file size to 150KB (150,000 bytes)
+        $maxFileSize = 150000; // 150KB
+        // Get file size
+        $fileSize = $file->getSize();
+        // Create new ImageManager instance with imagick driver
+        $manager = new ImageManager(['driver' => 'imagick']);
+        if ($fileSize > $maxFileSize) {
+          // Compress and save the image
+          $image = $manager->make($file);
+          $image->resize(800, null, function ($constraint) {
+            $constraint->aspectRatio();
+          })->save($path, 75); // Save with 75% quality
+        } else {
+          // Save the image without compression
+          $file->move(public_path('images/uploads/shipWarehouseUsage-photos/'), $filename);
+        }
+        $photoPath = $filename;
       } else {
-        // Save the image without compression
-        $file->move(public_path('images/uploads/shipWarehouseUsage-photos/'), $filename);
+        $photoPath = null;
       }
-      $photoPath = $filename;
-    } else {
-      $photoPath = null;
-    }
 
-    // Buat transaksi baru
-    ShipWarehouseUsages::create([
-      'ship_warehouse_condition_id' => $condition->id,
-      'quantity_used' => $request->quantity_used,
-      'used_item_condition' => $request->used_item_condition,
-      'usage_date' => $request->usage_date,
-      'description' => $request->description,
-      'pic' => $request->pic,
-      'photo' => $photoPath,
-      'status' => '', // assuming you want to set a default status
-    ]);
-
-    // Kurangi jumlah item di kondisi yang sesuai
-    $condition->quantity -= $request->quantity_used;
-    $condition->save();
-
-    // Tambah barang di gudang berdasarkan kondisi barang lama yang diganti
-    $newCondition = ShipWarehouseConditions::where('ship_warehouse_id', $condition->ship_warehouse_id)
-      ->where('condition', $request->used_item_condition)
-      ->first();
-
-    if ($newCondition) {
-      $newCondition->quantity += $request->quantity_used;
-      $newCondition->save();
-    } else {
-      // Jika kondisi tidak ada, buat baru
-      ShipWarehouseConditions::create([
-        'ship_warehouse_id' => $condition->ship_warehouse_id,
-        'condition' => $request->used_item_condition,
-        'quantity' => $request->quantity_used,
+      // Buat transaksi baru
+      ShipWarehouseUsages::create([
+        'ship_warehouse_condition_id' => $condition->id,
+        'quantity_used' => $request->quantity_used,
+        'used_item_condition' => $request->used_item_condition,
+        'usage_date' => $request->usage_date,
+        'description' => $request->description,
+        'pic' => $request->pic,
+        'photo' => $photoPath,
+        'status' => '', // assuming you want to set a default status
       ]);
+
+      // Kurangi jumlah item di kondisi yang sesuai
+      $quantityBefore = $condition->quantity;
+      $condition->quantity -= $request->quantity_used;
+
+      if ($condition->quantity < 0) {
+        throw new \Exception('Quantity used exceeds available quantity');
+      }
+
+      $condition->save();
+      WarehouseHistory::create([
+        'warehouse_type' => 'ship',
+        'ship_id' => $ship->id,
+        'item_id' => $shipWarehouse->item_id,
+        'condition' => $condition->condition,
+        'transaction_type' => 'Out',
+        'source_or_destination' => 'Usage',
+        'quantity_before' => $quantityBefore,
+        'quantity_after' => $condition->quantity,
+        'transaction_date' => now(),
+      ]);
+
+      // Tambah barang di gudang berdasarkan kondisi barang lama yang diganti
+      $newCondition = ShipWarehouseConditions::where('ship_warehouse_id', $condition->ship_warehouse_id)
+        ->where('condition', $request->used_item_condition)
+        ->first();
+
+      if ($newCondition) {
+        $quantityBeforeNew = $newCondition->quantity;
+        $newCondition->quantity += $request->quantity_used;
+        $newCondition->save();
+        WarehouseHistory::create([
+          'warehouse_type' => 'ship',
+          'ship_id' => $ship->id,
+          'item_id' => $shipWarehouse->item_id,
+          'condition' => $newCondition->condition,
+          'transaction_type' => 'In',
+          'source_or_destination' => 'Usage',
+          'quantity_before' => $quantityBeforeNew,
+          'quantity_after' => $newCondition->quantity,
+          'transaction_date' => now(),
+        ]);
+      } else {
+        // Jika kondisi tidak ada, buat baru
+        $newCondition = ShipWarehouseConditions::create([
+          'ship_warehouse_id' => $condition->ship_warehouse_id,
+          'condition' => $request->used_item_condition,
+          'quantity' => $request->quantity_used,
+        ]);
+        WarehouseHistory::create([
+          'warehouse_type' => 'ship',
+          'ship_id' => $ship->id,
+          'item_id' => $shipWarehouse->item_id,
+          'condition' => $request->used_item_condition,
+          'transaction_type' => 'In',
+          'source_or_destination' => 'Usage',
+          'quantity_before' => 0,
+          'quantity_after' => $request->quantity_used,
+          'transaction_date' => now(),
+        ]);
+      }
+
+      // Create log entry
+      Logs::create([
+        'user_id' => Auth::user()->id,
+        'action' => 'used ' . $item->item_name . ' (' . $item->item_pms . ') with condition ' . $newCondition->condition . ' from the ' . $ship->ship_name . ' Warehouse.',
+      ]);
+
+      // Commit transaksi jika semua berhasil
+      DB::commit();
+
+      return redirect()->back()->with('swal-success', 'Usage recorded successfully');
+    } catch (\Exception $e) {
+      // Rollback transaksi jika terjadi kesalahan
+      DB::rollBack();
+
+      // Redirect dengan pesan error
+      return redirect()->back()->with('swal-fail', 'Failed to record usage: ' . $e->getMessage());
     }
-
-    // Create log entry
-    Logs::create([
-      'user_id' => Auth::user()->id,
-      'action' => 'used ' . $item->item_name . ' (' . $item->item_pms . ') with condition ' . $newCondition->condition . ' from the ' . $ship->ship_name . ' Warehouse.',
-    ]);
-
-    return redirect()->back()->with('swal-success', 'Usage recorded successfully');
   }
 
   public function addAdjustmentShipWarehouseUsages(Request $request)
@@ -349,73 +484,102 @@ class ShipWarehousesController extends Controller
 
   public function addShipWarehouseSendOffice(Request $request)
   {
-    // Ambil data condition berdasarkan id
-    $condition = ShipWarehouseConditions::find($request->condition_id);
+    // Mulai transaksi database
+    DB::beginTransaction();
 
-    if (!$condition) {
-      return redirect()->back()->with('swal-fail', 'Condition not found');
-    }
+    try {
+      // Ambil data condition berdasarkan id
+      $condition = ShipWarehouseConditions::find($request->condition_id);
 
-    // Ambil data dari ship_warehouse berdasarkan ship_warehouse_id dari condition
-    $shipWarehouse = ShipWarehouses::find($condition->ship_warehouse_id);
-
-    if (!$shipWarehouse) {
-      return redirect()->back()->with('swal-fail', 'Ship Warehouse not found');
-    }
-
-    // Retrieve related ship and item details
-    $ship = Ships::find($shipWarehouse->ship_id);
-    $item = Items::find($shipWarehouse->item_id);
-
-    // Proses unggah foto jika ada
-    if ($request->hasFile('photo')) {
-      $file = $request->file('photo');
-      $extension = $file->getClientOriginalExtension();
-      $filename = uniqid() . '.' . $extension;
-      $path = public_path('images/uploads/shipWarehouseSendOffice-photos/' . $filename);
-      // Set maximum file size to 150KB (150,000 bytes)
-      $maxFileSize = 150000; // 150KB
-      // Get file size
-      $fileSize = $file->getSize();
-      // Create new ImageManager instance with imagick driver
-      $manager = new ImageManager(['driver' => 'imagick']);
-      if ($fileSize > $maxFileSize) {
-        // Compress and save the image
-        $image = $manager->make($file);
-        $image->resize(800, null, function ($constraint) {
-          $constraint->aspectRatio();
-        })->save($path, 75); // Save with 75% quality
-      } else {
-        // Save the image without compression
-        $file->move(public_path('images/uploads/shipWarehouseSendOffice-photos/'), $filename);
+      if (!$condition) {
+        throw new \Exception('Condition not found');
       }
-      $photoPath = $filename;
-    } else {
-      $photoPath = null;
+
+      // Ambil data dari ship_warehouse berdasarkan ship_warehouse_id dari condition
+      $shipWarehouse = ShipWarehouses::find($condition->ship_warehouse_id);
+
+      if (!$shipWarehouse) {
+        throw new \Exception('Ship Warehouse not found');
+      }
+
+      // Retrieve related ship and item details
+      $ship = Ships::find($shipWarehouse->ship_id);
+      $item = Items::find($shipWarehouse->item_id);
+
+      // Proses unggah foto jika ada
+      if ($request->hasFile('photo')) {
+        $file = $request->file('photo');
+        $extension = $file->getClientOriginalExtension();
+        $filename = uniqid() . '.' . $extension;
+        $path = public_path('images/uploads/shipWarehouseSendOffice-photos/' . $filename);
+        $maxFileSize = 150000; // 150KB
+        $fileSize = $file->getSize();
+        $manager = new ImageManager(['driver' => 'imagick']);
+        if ($fileSize > $maxFileSize) {
+          // Compress and save the image
+          $image = $manager->make($file);
+          $image->resize(800, null, function ($constraint) {
+            $constraint->aspectRatio();
+          })->save($path, 75); // Save with 75% quality
+        } else {
+          // Save the image without compression
+          $file->move(public_path('images/uploads/shipWarehouseSendOffice-photos/'), $filename);
+        }
+        $photoPath = $filename;
+      } else {
+        $photoPath = null;
+      }
+
+      // Buat transaksi baru
+      $shipWarehouseSendOffice = ShipWarehouseSendOffice::create([
+        'ship_warehouse_condition_id' => $condition->id,
+        'quantity_send' => $request->quantity_send,
+        'send_date' => $request->send_date,
+        'pic' => $request->pic,
+        'description' => $request->description,
+        'photo' => $photoPath,
+        'status' => 'Send by Ship', // assuming you want to set a default status
+      ]);
+
+      // Kurangi jumlah item di kondisi yang sesuai
+      $quantityBefore = $condition->quantity;
+      $condition->quantity -= $request->quantity_send;
+
+      if ($condition->quantity < 0) {
+        throw new \Exception('Quantity send exceeds available quantity');
+      }
+
+      $condition->save();
+
+      // Tambahkan ke Warehouse History (barang keluar dari ship warehouse)
+      WarehouseHistory::create([
+        'warehouse_type' => 'ship',
+        'ship_id' => $ship->id,
+        'item_id' => $shipWarehouse->item_id,
+        'condition' => $condition->condition,
+        'transaction_type' => 'Out',
+        'source_or_destination' => 'Send to Office',
+        'quantity_before' => $quantityBefore,
+        'quantity_after' => $condition->quantity,
+        'transaction_date' => now(),
+      ]);
+
+      // Create log entry
+      Logs::create([
+        'user_id' => Auth::user()->id,
+        'action' => 'sent ' . $item->item_name . ' (' . $item->item_pms . ') with condition ' . $condition->condition . ' from the ' . $ship->ship_name . ' Warehouse to the Office Warehouse.',
+      ]);
+
+      // Commit transaksi jika semua berhasil
+      DB::commit();
+
+      return redirect()->back()->with('swal-success', 'Send item to Office successfully');
+    } catch (\Exception $e) {
+      // Rollback transaksi jika terjadi kesalahan
+      DB::rollBack();
+
+      return redirect()->back()->with('swal-fail', 'Failed to send item to Office: ' . $e->getMessage());
     }
-
-    // Buat transaksi baru
-    $shipWarehouseSendOffice = ShipWarehouseSendOffice::create([
-      'ship_warehouse_condition_id' => $condition->id,
-      'quantity_send' => $request->quantity_send,
-      'send_date' => $request->send_date,
-      'pic' => $request->pic,
-      'description' => $request->description,
-      'photo' => $photoPath,
-      'status' => 'Send by Ship', // assuming you want to set a default status
-    ]);
-
-    // Kurangi jumlah item di kondisi yang sesuai
-    $condition->quantity -= $request->quantity_send;
-    $condition->save();
-
-    // Create log entry
-    Logs::create([
-      'user_id' => Auth::user()->id,
-      'action' => 'sent ' . $item->item_name . ' (' . $item->item_pms . ') with condition ' . $condition->condition . ' from the ' . $ship->ship_name . ' Warehouse to the Office Warehouse.',
-    ]);
-
-    return redirect()->back()->with('swal-success', 'Send item to Office successfully');
   }
 
   public function addAdjustmentShipWarehouseSendOffice(Request $request)
@@ -458,7 +622,6 @@ class ShipWarehousesController extends Controller
     return redirect()->back()->with('swal-success', 'Adjustment submitted successfully');
   }
 
-
   public function confirmAdjustmentShipWarehouseSendOffice($id)
   {
     // Temukan data pengiriman berdasarkan ID
@@ -493,7 +656,6 @@ class ShipWarehousesController extends Controller
 
     return redirect()->back()->with('swal-success', 'Items approved successfully');
   }
-
 
   public function confirmShipWarehouseSendOffice($id)
   {
@@ -564,90 +726,168 @@ class ShipWarehousesController extends Controller
 
   public function deleteShipWarehouseUsages($id)
   {
-    $transaction = ShipWarehouseUsages::find($id);
-    if (!$transaction) {
-      return redirect()->back()->with('swal-fail', 'Transaction not found');
-    }
+    // Mulai transaksi database
+    DB::beginTransaction();
 
-    $condition = ShipWarehouseConditions::find($transaction->ship_warehouse_condition_id);
-    if ($condition) {
+    try {
+      $transaction = ShipWarehouseUsages::find($id);
+      if (!$transaction) {
+        return redirect()->back()->with('swal-fail', 'Transaction not found');
+      }
+
+      $condition = ShipWarehouseConditions::find($transaction->ship_warehouse_condition_id);
+      if (!$condition) {
+        throw new \Exception('Condition record not found for the transaction');
+      }
+
+      $shipWarehouse = ShipWarehouses::find($condition->ship_warehouse_id);
+      $item = Items::find($shipWarehouse->item_id);
+      $ship = Ships::find($shipWarehouse->ship_id);
+
+      // Tambahkan kuantitas kembali ke kondisi awal (barang yang digunakan dikembalikan)
+      $quantityBeforeCondition = $condition->quantity;
       $condition->quantity += $transaction->quantity_used;
       $condition->save();
-    }
 
-    $shipWarehouse = ShipWarehouses::find($condition->ship_warehouse_id);
-    $item = Items::find($shipWarehouse->item_id);
-    $ship = Ships::find($shipWarehouse->ship_id);
+      // Tambahkan ke Warehouse History (barang bertambah kembali ke kondisi awal)
+      WarehouseHistory::create([
+        'warehouse_type' => 'ship',
+        'ship_id' => $ship->id,
+        'item_id' => $shipWarehouse->item_id,
+        'condition' => $condition->condition,
+        'transaction_type' => 'In',
+        'source_or_destination' => 'Usage Deleted',
+        'quantity_before' => $quantityBeforeCondition,
+        'quantity_after' => $condition->quantity,
+        'transaction_date' => now(),
+      ]);
 
-    $newCondition = ShipWarehouseConditions::where('ship_warehouse_id', $condition->ship_warehouse_id)
-      ->where('condition', $transaction->used_item_condition)
-      ->first();
+      // Kurangi kuantitas dari kondisi barang lama yang sebelumnya ditambahkan
+      $newCondition = ShipWarehouseConditions::where('ship_warehouse_id', $condition->ship_warehouse_id)
+        ->where('condition', $transaction->used_item_condition)
+        ->first();
 
-    if ($newCondition) {
-      $newCondition->quantity -= $transaction->quantity_used;
-      $newCondition->save();
-    }
+      if ($newCondition) {
+        $quantityBeforeNewCondition = $newCondition->quantity;
+        $newCondition->quantity -= $transaction->quantity_used;
 
-    // Hapus foto jika ada
-    if ($transaction->photo) {
-      $photoPath = public_path('images/uploads/shipWarehouseUsage-photos/' . $transaction->photo);
-      if (file_exists($photoPath)) {
-        unlink($photoPath);
+        if ($newCondition->quantity < 0) {
+          throw new \Exception('Reverted quantity exceeds current quantity in the new condition');
+        }
+
+        $newCondition->save();
+
+        // Tambahkan ke Warehouse History (barang dikurangi dari kondisi baru)
+        WarehouseHistory::create([
+          'warehouse_type' => 'ship',
+          'ship_id' => $ship->id,
+          'item_id' => $shipWarehouse->item_id,
+          'condition' => $newCondition->condition,
+          'transaction_type' => 'Out',
+          'source_or_destination' => 'Usage Deleted',
+          'quantity_before' => $quantityBeforeNewCondition,
+          'quantity_after' => $newCondition->quantity,
+          'transaction_date' => now(),
+        ]);
       }
+
+      // Hapus foto jika ada
+      if ($transaction->photo) {
+        $photoPath = public_path('images/uploads/shipWarehouseUsage-photos/' . $transaction->photo);
+        if (file_exists($photoPath)) {
+          unlink($photoPath);
+        }
+      }
+
+      // Hapus transaksi
+      $transaction->delete();
+
+      // Buat log entry
+      Logs::create([
+        'user_id' => Auth::user()->id,
+        'action' => 'deleted usage record for ' . $item->item_name . ' (' . $item->item_pms . ') from the ' . $ship->ship_name . ' Warehouse.',
+      ]);
+
+      // Commit transaksi jika semua berhasil
+      DB::commit();
+
+      return redirect()->back()->with('swal-success', 'Transaction deleted successfully');
+    } catch (\Exception $e) {
+      // Rollback transaksi jika terjadi kesalahan
+      DB::rollBack();
+
+      return redirect()->back()->with('swal-fail', 'Failed to delete transaction: ' . $e->getMessage());
     }
-
-    // Hapus transaksi
-    $transaction->delete();
-
-    // Buat log entry
-    Logs::create([
-      'user_id' => Auth::user()->id,
-      'action' => 'deleted usage record for ' . $item->item_name . ' (' . $item->item_pms . ') from the ' . $ship->ship_name . ' Warehouse.',
-    ]);
-
-    return redirect()->back()->with('swal-success', 'Transaction deleted successfully');
   }
 
   public function deleteShipWarehouseSendOffice($id)
   {
-    // Temukan transaksi
-    $transaction = ShipWarehouseSendOffice::find($id);
-    // dd($transaction->quantity_send);
-    if (!$transaction) {
-      return redirect()->back()->with('swal-fail', 'Transaction not found');
-    }
+    // Mulai transaksi database
+    DB::beginTransaction();
 
-    // Temukan kondisi terkait
-    $condition = ShipWarehouseConditions::find($transaction->ship_warehouse_condition_id);
-    if ($condition) {
-      // Tambahkan kuantitas kembali ke kondisi yang terkait dengan transaksi
-      $condition->quantity += $transaction->quantity_send;
-      $condition->save(); // Simpan kondisi dengan kuantitas yang telah diperbarui
-    }
-
-    $shipWarehouse = ShipWarehouses::find($condition->ship_warehouse_id);
-    $item = Items::find($shipWarehouse->item_id);
-    $ship = Ships::find($shipWarehouse->ship_id);
-
-    // Hapus foto jika ada
-    if ($transaction->photo) {
-      $photoPath = public_path('images/uploads/shipWarehouseUsage-photos/' . $transaction->photo);
-      if (file_exists($photoPath)) {
-        unlink($photoPath);
+    try {
+      // Temukan transaksi
+      $transaction = ShipWarehouseSendOffice::find($id);
+      if (!$transaction) {
+        throw new \Exception('Transaction not found');
       }
+
+      // Temukan kondisi terkait
+      $condition = ShipWarehouseConditions::find($transaction->ship_warehouse_condition_id);
+      if (!$condition) {
+        throw new \Exception('Condition record not found for the transaction');
+      }
+
+      $shipWarehouse = ShipWarehouses::find($condition->ship_warehouse_id);
+      $item = Items::find($shipWarehouse->item_id);
+      $ship = Ships::find($shipWarehouse->ship_id);
+
+      // Tambahkan kuantitas kembali ke kondisi yang terkait dengan transaksi
+      $quantityBefore = $condition->quantity;
+      $condition->quantity += $transaction->quantity_send;
+      $condition->save();
+
+      // Tambahkan ke Warehouse History (barang kembali ke Ship Warehouse)
+      WarehouseHistory::create([
+        'warehouse_type' => 'ship',
+        'ship_id' => $ship->id,
+        'item_id' => $shipWarehouse->item_id,
+        'condition' => $condition->condition,
+        'transaction_type' => 'In',
+        'source_or_destination' => 'Send Deleted',
+        'quantity_before' => $quantityBefore,
+        'quantity_after' => $condition->quantity,
+        'transaction_date' => now(),
+      ]);
+
+      // Hapus foto jika ada
+      if ($transaction->photo) {
+        $photoPath = public_path('images/uploads/shipWarehouseSendOffice-photos/' . $transaction->photo);
+        if (file_exists($photoPath)) {
+          unlink($photoPath);
+        }
+      }
+
+      // Hapus transaksi
+      $transaction->delete();
+
+      // Buat log entry
+      Logs::create([
+        'user_id' => Auth::user()->id,
+        'action' => 'deleted sent record for ' . $item->item_name . ' (' . $item->item_pms . ') from the ' . $ship->ship_name . ' Warehouse.',
+      ]);
+
+      // Commit transaksi jika semua berhasil
+      DB::commit();
+
+      // Redirect dengan pesan sukses
+      return redirect()->back()->with('swal-success', 'Transaction deleted successfully');
+    } catch (\Exception $e) {
+      // Rollback transaksi jika terjadi kesalahan
+      DB::rollBack();
+
+      return redirect()->back()->with('swal-fail', 'Failed to delete transaction: ' . $e->getMessage());
     }
-
-    // Hapus transaksi
-    $transaction->delete();
-
-    // Buat log entry
-    Logs::create([
-      'user_id' => Auth::user()->id,
-      'action' => 'deleted sent record for ' . $item->item_name . ' (' . $item->item_pms . ') from the ' . $ship->ship_name . ' Warehouse.',
-    ]);
-
-    // Redirect dengan pesan sukses
-    return redirect()->back()->with('swal-success', 'Transaction deleted successfully');
   }
 
   public function shipWarehouseUsage($shipId, Request $request)
@@ -772,6 +1012,12 @@ class ShipWarehousesController extends Controller
     return response()->json(['html' => $html, 'user' => $user]);
   }
 
+  public function shipWarehouseHistory($shipID)
+  {
+    $history = WarehouseHistory::where('ship_id', $shipID)->orderBy('transaction_date', 'ASC')->with('items')->get();
+    return response()->json(['history' => $history]);
+  }
+
   public function indexShipWarehouses()
   {
     $ships = Ships::get();
@@ -857,119 +1103,146 @@ class ShipWarehousesController extends Controller
 
   public function importShipWarehouses(Request $request)
   {
-    // Validate the uploaded file
-    $request->validate([
-      'import_file' => 'required|mimes:xlsx',
-      'ship_name' => 'required|string', // Ensure ship_name is provided
-    ]);
+    // Mulai transaksi database
+    DB::beginTransaction();
 
-    // Find the ship based on the name provided in the request
-    $ship = Ships::where('ship_name', $request->ship_name)->first();
+    try {
+      // Validasi file yang diunggah
+      $request->validate([
+        'import_file' => 'required|mimes:xlsx',
+        'ship_name' => 'required|string',
+      ]);
 
-    if (!$ship) {
-      return redirect()->back()->with('swal-fail', "Ship {$request->ship_name} not found");
-    }
-
-    // Load the Excel file
-    $path = $request->file('import_file')->getRealPath();
-    $spreadsheet = IOFactory::load($path);
-    $sheet = $spreadsheet->getActiveSheet();
-    $data = $sheet->toArray();
-
-    // Skip the first row if it contains headers
-    $header = array_shift($data);
-
-    $currentItemDetails = null; // To hold details for the current item
-
-    foreach ($data as $row) {
-      // Remove any empty rows or rows with insufficient data
-      $row = array_map('trim', $row); // Trim whitespace from all elements
-      if (empty($row) || count($row) < 15 || (empty($row[0]) && !$currentItemDetails)) {
-        continue; // Skip if the row is empty or has fewer than 15 columns, and there's no current item details
+      // Temukan kapal berdasarkan nama
+      $ship = Ships::where('ship_name', $request->ship_name)->first();
+      if (!$ship) {
+        throw new \Exception("Ship {$request->ship_name} not found");
       }
 
-      // Map Excel data to your fields based on the column order in your screenshot
-      if (!empty($row[0])) {
-        // New item information row
-        $currentItemDetails = [
-          'itemCode' => $row[0], // Item Code
-          'minimumQuantity' => $row[1], // Minimum Quantity
-          'department' => $row[2], // Department
-          'positionDate' => $row[3], // Position Date
-          'equipmentCategory' => $row[4], // Equipment Category
-          'toolCategory' => $row[5], // Tool Category
-          'pmsNumber' => $row[6], // PMS Number
-          'type' => $row[7], // Type
-          'certification' => $row[8], // Certification
-          'lastMaintenanceDate' => $row[9], // Last Maintenance Date
-          'lastInspectionDate' => $row[10], // Last Inspection Date
-          'description' => $row[11], // Description
-        ];
+      // Baca file Excel
+      $path = $request->file('import_file')->getRealPath();
+      $spreadsheet = IOFactory::load($path);
+      $sheet = $spreadsheet->getActiveSheet();
+      $data = $sheet->toArray();
 
-        // Find the item by code
-        $item = Items::where('item_pms', $currentItemDetails['itemCode'])->first();
+      // Ambil header dari file dan pastikan format sesuai
+      $header = array_shift($data);
 
-        if (!$item) {
-          return redirect()->back()->with('swal-fail', "Item with code {$currentItemDetails['itemCode']} not found");
+      $currentItemDetails = null;
+
+      foreach ($data as $row) {
+        $row = array_map('trim', $row); // Trim whitespace
+
+        if (empty($row[0]) && !$currentItemDetails) {
+          continue; // Lewati baris kosong
         }
 
-        // Check if the item already exists in the ship's warehouse
-        $shipWarehouse = ShipWarehouses::updateOrCreate(
-          ['ship_id' => $ship->id, 'item_id' => $item->id],
-          [
-            'minimum_quantity' => $currentItemDetails['minimumQuantity'],
-            'department' => $currentItemDetails['department'],
-            'position_date' => $currentItemDetails['positionDate'],
-            'equipment_category' => $currentItemDetails['equipmentCategory'],
-            'tool_category' => $currentItemDetails['toolCategory'],
-            'type' => $currentItemDetails['type'],
-            'certification' => $currentItemDetails['certification'],
-            'last_maintenance_date' => $currentItemDetails['lastMaintenanceDate'],
-            'last_inspection_date' => $currentItemDetails['lastInspectionDate'],
-            'description' => $currentItemDetails['description'],
-          ]
-        );
+        // Data item baru
+        if (!empty($row[0])) {
+          $currentItemDetails = [
+            'itemCode' => $row[0],
+            'minimumQuantity' => $row[1],
+            'department' => $row[2],
+            'positionDate' => $row[3],
+            'equipmentCategory' => $row[4],
+            'toolCategory' => $row[5],
+            'pmsNumber' => $row[6],
+            'type' => $row[7],
+            'certification' => $row[8],
+            'lastMaintenanceDate' => $row[9],
+            'lastInspectionDate' => $row[10],
+            'description' => $row[11],
+          ];
 
-        // Automatically create the four conditions if they do not exist
-        $conditions = ['Baru', 'Bekas Bisa Pakai', 'Bekas Tidak Bisa Pakai', 'Rekondisi'];
-        foreach ($conditions as $condition) {
-          ShipWarehouseConditions::firstOrCreate(
-            ['ship_warehouse_id' => $shipWarehouse->id, 'condition' => $condition],
-            ['quantity' => 0, 'location' => '']
+          $item = Items::where('item_pms', $currentItemDetails['itemCode'])->first();
+          if (!$item) {
+            throw new \Exception("Item with code {$currentItemDetails['itemCode']} not found");
+          }
+
+          // Tambahkan atau perbarui data gudang kapal
+          $shipWarehouse = ShipWarehouses::updateOrCreate(
+            ['ship_id' => $ship->id, 'item_id' => $item->id],
+            [
+              'minimum_quantity' => $currentItemDetails['minimumQuantity'],
+              'department' => $currentItemDetails['department'],
+              'position_date' => $currentItemDetails['positionDate'],
+              'equipment_category' => $currentItemDetails['equipmentCategory'],
+              'tool_category' => $currentItemDetails['toolCategory'],
+              'type' => $currentItemDetails['type'],
+              'certification' => $currentItemDetails['certification'],
+              'last_maintenance_date' => $currentItemDetails['lastMaintenanceDate'],
+              'last_inspection_date' => $currentItemDetails['lastInspectionDate'],
+              'description' => $currentItemDetails['description'],
+            ]
           );
+
+          // Tambahkan kondisi jika belum ada
+          $conditions = ['Baru', 'Bekas Bisa Pakai', 'Bekas Tidak Bisa Pakai', 'Rekondisi'];
+          foreach ($conditions as $condition) {
+            ShipWarehouseConditions::firstOrCreate(
+              ['ship_warehouse_id' => $shipWarehouse->id, 'condition' => $condition],
+              ['quantity' => 0, 'location' => '']
+            );
+          }
+        }
+
+        // Proses kuantitas dan lokasi kondisi
+        $condition = $row[12]; // Kondisi
+        $location = $row[13]; // Lokasi
+        $quantity = isset($row[14]) && is_numeric($row[14]) ? (int)$row[14] : 0;
+
+        $conditionRecord = ShipWarehouseConditions::where('ship_warehouse_id', $shipWarehouse->id)
+          ->where('condition', $condition)
+          ->first();
+
+        if ($conditionRecord) {
+          $quantityBefore = $conditionRecord->quantity; // Simpan kuantitas sebelum perubahan
+          $conditionRecord->quantity = $quantity;
+          $conditionRecord->location = $location;
+          $conditionRecord->save();
+
+          // Tambahkan ke Warehouse History
+          WarehouseHistory::create([
+            'warehouse_type' => 'ship',
+            'ship_id' => $ship->id,
+            'item_id' => $shipWarehouse->item_id,
+            'condition' => $condition,
+            'transaction_type' => 'In',
+            'source_or_destination' => 'Import',
+            'quantity_before' => $quantityBefore,
+            'quantity_after' => $quantity,
+            'transaction_date' => now(),
+          ]);
         }
       }
 
-      // Process quantity and location for each condition
-      $condition = $row[12]; // Condition
-      $location = $row[13]; // Location
-      $quantity = isset($row[14]) && is_numeric($row[14]) ? (int)$row[14] : 0; // Quantity with validation
-
-      // Ensure item details are available
-      if (!$currentItemDetails) {
-        continue; // Skip if no current item details are available
-      }
-
-      // Update the condition with quantity and location from Excel
-      $conditionRecord = ShipWarehouseConditions::where('ship_warehouse_id', $shipWarehouse->id)
-        ->where('condition', $condition)
-        ->first();
-
-      if ($conditionRecord) {
-        $conditionRecord->quantity = $quantity;
-        $conditionRecord->location = $location;
-        $conditionRecord->save();
-      }
-
-      // Log the action
+      // Buat log untuk proses import
       Logs::create([
         'user_id' => Auth::user()->id,
         'action' => "imported data to the {$ship->ship_name} Warehouse.",
       ]);
-    }
 
-    return redirect()->back()->with('swal-success', 'Items imported successfully');
+      // Commit transaksi
+      DB::commit();
+
+      return redirect()->back()->with('swal-success', 'Items imported successfully');
+    } catch (\Exception $e) {
+      // Rollback jika terjadi kesalahan
+      DB::rollBack();
+
+      // Tangkap detail error
+      $errorDetails = [
+        'message' => $e->getMessage(),
+        'file' => $e->getFile(),
+        'line' => $e->getLine(),
+        'trace' => $e->getTraceAsString(),
+      ];
+
+      // Kembalikan pesan error ke pengguna
+      return redirect()->back()->with('swal-fail', 'Failed to import items: ' . $e->getMessage() . ' in ' . $e->getFile() . ' at line ' . $e->getLine());
+    }
   }
+
 
   public function getItemsInShip(Request $request)
   {

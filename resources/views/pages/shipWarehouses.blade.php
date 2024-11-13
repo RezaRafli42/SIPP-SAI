@@ -98,6 +98,10 @@
                                             <i class="mdi mdi-format-list-bulleted pr-2"></i>Adjusment
                                         </button>
                                     @endif
+                                    <button type="button" class="btn btn-primary btn-icon-text mr-1" data-toggle="modal"
+                                        data-target="#shipWarehouseHistoryModal">
+                                        <i class="mdi mdi-database pr-2"></i>Warehouse Item History
+                                    </button>
                                     @if (
                                         (Auth::user() && Auth::user()->role === 'Super Admin') ||
                                             Auth::user()->role === 'Fleet Admin' ||
@@ -960,6 +964,50 @@
                 </div>
             </div>
         </div>
+
+        {{-- History Modal --}}
+        <div class="modal fade" id="shipWarehouseHistoryModal" tabindex="-1" role="dialog"
+            aria-labelledby="shipWarehouseHistoryModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-custom-medium" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="shipWarehouseHistoryModalLabel">Ship Warehouse History</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <form id="" method="POST" action="{{ url('') }}" enctype="multipart/form-data">
+                        @csrf
+                        <div class="modal-body">
+                            <div style="max-height: 510px; overflow-y: auto">
+                                <table class="table table-bordered text-center" data-toggle="table"
+                                    data-sortable="true">
+                                    <thead
+                                        style="position: sticky; top: 0; background-color: white; z-index: 10; border-bottom: solid 1px black;">
+                                        <tr>
+                                            <th style="font-size: 1rem" data-sortable="true">No</th>
+                                            <th style="font-size: 1rem" data-sortable="true">Category</th>
+                                            <th style="font-size: 1rem" data-sortable="true">Source/Destination</th>
+                                            <th style="font-size: 1rem" data-sortable="true">Item PMS</th>
+                                            <th style="font-size: 1rem" data-sortable="true">Item Name</th>
+                                            <th style="font-size: 1rem" data-sortable="true">Condition</th>
+                                            <th style="font-size: 1rem" data-sortable="true">Quantity Before</th>
+                                            <th style="font-size: 1rem" data-sortable="true">Quantity After</th>
+                                            <th style="font-size: 1rem" data-sortable="true">Transaction Date</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tableBodyShipWarehouseHistory">
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
     @endsection
     @section('script')
         {{-- Load and Search Data --}}
@@ -1674,6 +1722,69 @@
                         $(target).fadeIn(600);
                     });
                 });
+            });
+        </script>
+
+        {{-- History Modal --}}
+        <script>
+            $(document).ready(function() {
+                $('#shipWarehouseHistoryModal').on('show.bs.modal', function(e) {
+                    var activePill = $('#v-pills-tab .nav-link.active');
+                    var shipData = activePill.data('ship'); // Periksa apakah shipId benar
+                    var shipId = shipData.id;
+                    loadShipWarehouseHistoryData(shipId); // Panggil fungsi untuk memuat data
+                });
+
+                function loadShipWarehouseHistoryData(shipId) {
+                    // AJAX request untuk mendapatkan data penggunaan
+                    $.ajax({
+                        url: '/shipWarehouseHistory/' + shipId,
+                        method: 'GET',
+                        success: function(data) {
+                            populateShipWarehouseHistoryTable(data);
+                        },
+                        error: function(xhr, status, error) {
+                            console.error("Error:", error);
+                        }
+                    });
+                }
+
+                function populateShipWarehouseHistoryTable(data) {
+                    var tableBody = $('#tableBodyShipWarehouseHistory');
+                    tableBody.empty(); // Kosongkan tabel sebelum mengisi data baru
+
+                    // Akses array dari properti `history`
+                    var records = data.history;
+
+                    // Iterasi melalui data dalam `history`
+                    records.forEach(function(record, index) {
+                        var transactionTypeColor = record.transaction_type === 'In' ? 'green' : 'red';
+                        var quantityChange = record.transaction_type === 'In' ? '+' : '-';
+                        var quantityDifference = Math.abs(record.quantity_after - record.quantity_before);
+
+                        var row = `
+                            <tr>
+                                <td>${index + 1}</td>
+                                <td style="color: ${transactionTypeColor}; font-weight: bold; font-size:1rem;">
+                                    ${record.transaction_type}
+                                </td>
+                                <td>${record.source_or_destination}</td>
+                                <td>${record.items.item_pms}</td>
+                                <td>${record.items.item_name}</td>
+                                <td>${record.condition}</td>
+                                <td>
+                                    ${record.quantity_before}
+                                    <span style="color: ${transactionTypeColor};">
+                                        (${quantityChange}${quantityDifference})
+                                    </span>
+                                </td>
+                                <td>${record.quantity_after}</td>
+                                <td>${new Date(record.transaction_date).toLocaleDateString()}</td>
+                            </tr>
+                        `;
+                        tableBody.append(row); // Tambahkan baris ke tabel
+                    });
+                }
             });
         </script>
     @endsection

@@ -84,6 +84,7 @@ Route::get('/deleteShipWarehouseSendOffice/{id}', [App\Http\Controllers\ShipWare
 Route::post('/importShipWarehouses', [App\Http\Controllers\ShipWarehousesController::class, 'importShipWarehouses'])->name('importShipWarehouses');
 Route::get('/get-itemsInShip', [App\Http\Controllers\ShipWarehousesController::class, 'getItemsInShip'])->name('getItemsInShip');
 Route::get('/get-itemQuantity', [App\Http\Controllers\ShipWarehousesController::class, 'getItemQuantity'])->name('getItemQuantity');
+Route::get('/shipWarehouseHistory/{shipId}', [App\Http\Controllers\ShipWarehousesController::class, 'shipWarehouseHistory'])->name('shipWarehouseHistory');
 // Purchase Requests
 Route::get('/purchaseRequests', [App\Http\Controllers\PurchaseRequestsController::class, 'indexPurchaseRequests'])->name('indexPurchaseRequests');
 Route::get('/data-purchaseRequests/{id}', [App\Http\Controllers\PurchaseRequestsController::class, 'loadDataPurchaseRequests'])->name('loadDataPurchaseRequests');

@@ -95,7 +95,6 @@ class InventoryTransfersController extends Controller
     return response()->json(['html' => $html]);
   }
 
-
   public function getInventoryTransferItems($id)
   {
     // Cari ship_id berdasarkan purchase_order_id
@@ -340,7 +339,7 @@ class InventoryTransfersController extends Controller
       $inventoryTransfer = InventoryTransfers::find($item);
 
       if (!$inventoryTransfer) {
-        return redirect()->back()->with('swal-fail', 'Inventory Transfer not found');
+        throw new \Exception('Inventory Transfer not found');
       }
 
       $fileNames = json_decode($inventoryTransfer->recipient_photos, true) ?? []; // Existing photos
@@ -349,7 +348,7 @@ class InventoryTransfersController extends Controller
       if ($request->hasFile('recipient_photos')) {
         foreach ($request->file('recipient_photos') as $index => $file) {
           $extension = $file->getClientOriginalExtension();
-          $filename = uniqid() . '.' . $extension;  // Generate a unique filename
+          $filename = uniqid() . '.' . $extension; // Generate a unique filename
           $path = public_path('images/uploads/inventoryTransfers-photos/recipient/' . $filename);
 
           $maxFileSize = 75000; // 75KB
@@ -359,25 +358,24 @@ class InventoryTransfersController extends Controller
 
           if ($fileSize > $maxFileSize && in_array($extension, ['jpg', 'jpeg', 'png'])) {
             // Compress and save the image
-            $quality = 75; // Start with 75% quality
+            $quality = 75;
             do {
               $image = $manager->make($file);
               $image->resize(800, null, function ($constraint) {
                 $constraint->aspectRatio();
               })->save($path, $quality); // Save with current quality level
 
-              $currentFileSize = filesize($path); // Get the file size after saving
+              $currentFileSize = filesize($path);
 
               if ($currentFileSize > $maxFileSize) {
-                $quality -= 5; // Reduce quality by 5% and try again
+                $quality -= 5;
               }
-            } while ($currentFileSize > $maxFileSize && $quality > 5); // Stop if file size is acceptable or quality is too low
+            } while ($currentFileSize > $maxFileSize && $quality > 5);
           } else {
-            // Save the document without compression
             $file->move(public_path('images/uploads/inventoryTransfers-photos/recipient/'), $filename);
           }
 
-          $fileNames[] = $filename; // Add the filename to the array
+          $fileNames[] = $filename;
         }
       }
 
@@ -395,17 +393,16 @@ class InventoryTransfersController extends Controller
           }
         }
 
-        $inventoryTransfer->file = $deliveryReceiptFileName; // Save the new delivery receipt file name
+        $inventoryTransfer->file = $deliveryReceiptFileName;
       }
 
-      // Update existing InventoryTransfer record
-      $inventoryTransfer->recipient_photos = json_encode($fileNames); // Update filenames
-      // $inventoryTransfer->received_date = now(); // Update the current date and time 
+      // Update InventoryTransfer record
+      $inventoryTransfer->recipient_photos = json_encode($fileNames);
       $inventoryTransfer->received_date = $request->received_date;
       $inventoryTransfer->status = 'Diterima Kapal'; // Set status to "Diterima Kapal"
       $inventoryTransfer->save();
 
-      // Update status of related PurchaseRequestItems to "Diterima Kapal" and update ShipWarehouseConditions quantity
+      // Update related PurchaseRequestItems and ShipWarehouseConditions
       $purchaseRequestId = null;
       $inventoryTransferItems = InventoryTransferItems::where('inventory_transfer_id', $inventoryTransfer->id)->get();
 
@@ -425,17 +422,31 @@ class InventoryTransfersController extends Controller
               ->first();
 
             if ($shipWarehouseCondition) {
+              $quantityBefore = $shipWarehouseCondition->quantity; // Save quantity before update
               $shipWarehouseCondition->quantity += $purchaseRequestItem->quantity;
               $shipWarehouseCondition->save();
+
+              // Add to Warehouse History
+              WarehouseHistory::create([
+                'warehouse_type' => 'ship',
+                'ship_id' => $shipWarehouse->ship_id,
+                'item_id' => $shipWarehouse->item_id,
+                'condition' => $inventoryTransferItem->condition,
+                'transaction_type' => 'In', // Item added to ship warehouse
+                'source_or_destination' => $inventoryTransfer->delivery_order_number,
+                'quantity_before' => $quantityBefore,
+                'quantity_after' => $shipWarehouseCondition->quantity,
+                'transaction_date' => now(),
+              ]);
             }
           }
 
-          // Simpan purchase_request_id untuk pemeriksaan status nanti
+          // Save purchase_request_id for status check
           $purchaseRequestId = $purchaseRequestItem->purchase_request_id;
         }
       }
 
-      // Jika semua PurchaseRequestItems sudah "Diterima Kapal", update status PurchaseRequest menjadi "Selesai"
+      // Update PurchaseRequest status to "Selesai" if all items are received
       if ($purchaseRequestId) {
         $purchaseRequest = PurchaseRequests::find($purchaseRequestId);
 
@@ -456,7 +467,7 @@ class InventoryTransfersController extends Controller
         'action' => 'accepted Delivery Order ' . $request->input('delivery_order_number') . '.',
       ]);
 
-      // Commit transaksi jika semua berhasil
+      // Commit transaksi
       DB::commit();
 
       return redirect()->back()->with('swal-success', 'Delivery Order accepted successfully');

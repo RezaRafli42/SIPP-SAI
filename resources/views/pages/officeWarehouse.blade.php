@@ -231,8 +231,7 @@
                             <span aria-hidden="true">&times;</span>
                         </button>
                     </div>
-                    <form id="addOfficeWarehouseForm" method="POST" action="{{ url('addOfficeWarehouse') }}"
-                        enctype="multipart/form-data">
+                    <form id="" method="POST" action="{{ url('') }}" enctype="multipart/form-data">
                         @csrf
                         <div class="modal-body">
                             <div style="max-height: 510px; overflow-y: auto">
