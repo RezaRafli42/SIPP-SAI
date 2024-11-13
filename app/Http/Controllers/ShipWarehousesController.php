@@ -7,6 +7,7 @@ use App\Models\ShipWarehouseConditions as ShipWarehouseConditions;
 use App\Models\ShipWarehouseUsages as ShipWarehouseUsages;
 use App\Models\ShipWarehouseSendOffice as ShipWarehouseSendOffice;
 use App\Models\OfficeWarehouse as OfficeWarehouse;
+use App\Models\WarehouseHistory as WarehouseHistory;
 use App\Models\Ships as Ships;
 use App\Models\Items as Items;
 use App\Models\Logs as Logs;
@@ -520,9 +521,11 @@ class ShipWarehousesController extends Controller
       ->first();
 
     if ($officeWarehouse) {
+      $quantityBefore = $officeWarehouse->quantity;
       $officeWarehouse->quantity += $sendOffice->quantity_send;
       $officeWarehouse->save();
     } else {
+      $quantityBefore = 0;
       $conditions = ['Baru', 'Bekas Bisa Pakai', 'Bekas Tidak Bisa Pakai', 'Rekondisi'];
       foreach ($conditions as $cond) {
         OfficeWarehouse::create([
@@ -533,6 +536,18 @@ class ShipWarehousesController extends Controller
         ]);
       }
     }
+
+    WarehouseHistory::create([
+      'warehouse_type' => 'office',
+      'ship_id' => null,
+      'item_id' => $item_id,
+      'condition' => $condition,
+      'transaction_type' => 'In',
+      'source_or_destination' => $ship->ship_name,
+      'quantity_before' => $quantityBefore,
+      'quantity_after' => $officeWarehouse->quantity,
+      'transaction_date' => now(),
+    ]);
 
     // Update the send office record to confirmed
     $sendOffice->status = 'Received by Office'; // Update status to "Received by Office"

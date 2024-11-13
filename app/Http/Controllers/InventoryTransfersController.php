@@ -7,6 +7,7 @@ use App\Models\ShipWarehouseConditions as ShipWarehouseConditions;
 use App\Models\ShipWarehouseUsages as ShipWarehouseUsages;
 use App\Models\ShipWarehouseSendOffice as ShipWarehouseSendOffice;
 use App\Models\OfficeWarehouse as OfficeWarehouse;
+use App\Models\WarehouseHistory as WarehouseHistory;
 use App\Models\Ships as Ships;
 use App\Models\Items as Items;
 use App\Models\InventoryTransfers as InventoryTransfers;
@@ -228,6 +229,7 @@ class InventoryTransfersController extends Controller
           ->first();
 
         if ($officeWarehouse) {
+          $quantityBefore = $officeWarehouse->quantity;
           $newQuantity = $officeWarehouse->quantity - $purchaseRequestItem->quantity;
 
           // Cek apakah quantity menjadi kurang dari 0
@@ -243,6 +245,18 @@ class InventoryTransfersController extends Controller
           // Jika valid, kurangi quantity
           $officeWarehouse->quantity = $newQuantity;
           $officeWarehouse->save();
+
+          WarehouseHistory::create([
+            'warehouse_type' => 'office', // Karena ini dari gudang kantor
+            'ship_id' => null, // Tidak terkait dengan kapal
+            'item_id' => $purchaseRequestItem->item_id,
+            'condition' => $request->condition[$index],
+            'transaction_type' => 'Out', // Barang keluar dari gudang
+            'source_or_destination' => $inventoryTransfer->delivery_order_number, // Nomor DO sebagai sumber
+            'quantity_before' => $quantityBefore,
+            'quantity_after' => $newQuantity,
+            'transaction_date' => now(), // Tanggal saat transaksi
+          ]);
 
           // Ubah status purchase_request_item menjadi "Dikirim Kantor"
           $purchaseRequestItem->status = 'Dikirim Kantor';

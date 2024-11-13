@@ -245,6 +245,7 @@
                                             <th style="font-size: 1rem" data-sortable="true">Source/Destination</th>
                                             <th style="font-size: 1rem" data-sortable="true">Item PMS</th>
                                             <th style="font-size: 1rem" data-sortable="true">Item Name</th>
+                                            <th style="font-size: 1rem" data-sortable="true">Condition</th>
                                             <th style="font-size: 1rem" data-sortable="true">Quantity Before</th>
                                             <th style="font-size: 1rem" data-sortable="true">Quantity After</th>
                                             <th style="font-size: 1rem" data-sortable="true">Transaction Date</th>
@@ -261,7 +262,14 @@
                                                 <td>{{ $record->source_or_destination }}</td>
                                                 <td>{{ $record->items->item_pms }}</td>
                                                 <td>{{ $record->items->item_name }}</td>
-                                                <td>{{ $record->quantity_before }}</td>
+                                                <td>{{ $record->condition }}</td>
+                                                <td>
+                                                    {{ $record->quantity_before }}
+                                                    <span
+                                                        style="color: {{ $record->transaction_type == 'In' ? 'green' : 'red' }};">
+                                                        ({{ $record->transaction_type == 'In' ? '+' : '-' }}{{ abs($record->quantity_after - $record->quantity_before) }})
+                                                    </span>
+                                                </td>
                                                 <td>{{ $record->quantity_after }}</td>
                                                 <td>{{ \Carbon\Carbon::parse($record->transaction_date)->format('d/m/Y') }}
                                                 </td>
