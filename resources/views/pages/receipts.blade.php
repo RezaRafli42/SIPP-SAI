@@ -62,7 +62,7 @@
                                         data-toggle="table" data-sortable="true">
                                         <thead>
                                             <tr class="text-center">
-                                                <th data-sortable="true">No#</th>
+                                                <th data-sortable="true">No</th>
                                                 <th data-sortable="true">Receipt No.</th>
                                                 <th data-sortable="true">Received Date</th>
                                                 <th data-sortable="true">Received By</th>

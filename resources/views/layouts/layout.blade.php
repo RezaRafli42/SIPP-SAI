@@ -181,6 +181,12 @@
                             <span class="menu-title">Inventory Transfers</span>
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="expenseAccountSpends">
+                            <i class="mdi mdi-currency-usd menu-icon"></i>
+                            <span class="menu-title">Account Spends</span>
+                        </a>
+                    </li>
                 </ul>
             </nav>
             <!-- partial -->

@@ -135,3 +135,6 @@ Route::get('/get-inventoryTransferItems/{id}', [App\Http\Controllers\InventoryTr
 Route::get('/print-deliveryOrders/{id}', [App\Http\Controllers\InventoryTransfersController::class, 'printDeliveryOrders'])->name('printDeliveryOrders');
 Route::post('/updateInventoryTransfers', [App\Http\Controllers\InventoryTransfersController::class, 'updateInventoryTransfers'])->name('updateInventoryTransfers');
 Route::get('/print-deliveryReceipts/{id}', [App\Http\Controllers\InventoryTransfersController::class, 'printDeliveryReceipts'])->name('printDeliveryReceipts');
+// Expense Accounts
+Route::get('/expenseAccountSpends', [App\Http\Controllers\ExpenseAccountDetailsController::class, 'indexExpenseAccountDetails'])->name('indexExpenseAccountDetails');
+Route::get('/get-detailAccountSpends', [App\Http\Controllers\ExpenseAccountDetailsController::class, 'getDetailAccountSpends'])->name('getDetailAccountSpends');

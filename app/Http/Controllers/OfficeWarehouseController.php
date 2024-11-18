@@ -169,7 +169,6 @@ class OfficeWarehouseController extends Controller
     }
   }
 
-
   public function deleteOfficeWarehouse($id)
   {
     // Mulai transaksi database

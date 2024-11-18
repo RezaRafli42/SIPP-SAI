@@ -576,7 +576,10 @@
                 }
 
                 // Convert totalConvertedPrice to Indonesian currency format
-                const formattedTotalPrice = totalConvertedPrice.toLocaleString('id-ID');
+                const formattedTotalPrice = new Intl.NumberFormat('id-ID', {
+                    style: 'currency',
+                    currency: 'IDR'
+                }).format(totalConvertedPrice);
 
                 // Log the final total price
                 // console.log(`Final total converted price: ${formattedTotalPrice}`);
@@ -707,7 +710,10 @@
                     <div class="col-md-12 col-xl-5 d-flex flex-column justify-content-start">
                         <div class="ml-xl-4 mt-3">
                             <p class="card-title" id="supplierName">${supplier.supplier_name}</p>
-                            <h1 class="text-primary text-nowrap mb-0" id="supplierSpend">IDR ${supplier.total_spend.toLocaleString('id-ID')}</h1>
+                            <h1 class="text-primary text-nowrap mb-0" id="supplierSpend">IDR ${new Intl.NumberFormat('id-ID', {
+                                                    style: 'currency',
+                                                    currency: 'IDR'
+                                                }).format(supplier.total_spend)}</h1>
                             <p class="mb-3 text-danger">*exclude PPN</p>
                             <h3 class="font-weight-500 mb-xl-3 text-primary">${supplier.supplier_country}</h3>
                             <p class="mb-2 mb-xl-0" id="supplierAddress" style="font-size:1rem;">${supplier.supplier_address}, ${supplier.supplier_city}, ${supplier.supplier_country}</p>

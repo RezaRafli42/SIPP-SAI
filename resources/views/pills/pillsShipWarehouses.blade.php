@@ -2,7 +2,7 @@
     <table class="display expandable-table text-nowrap" style="min-width: 100%">
         <thead>
             <tr class="text-center">
-                <th>No#</th>
+                <th>No</th>
                 <th>Photo</th>
                 <th>PMS Code</th>
                 <th>Item Name</th>

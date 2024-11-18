@@ -50,7 +50,7 @@
                                         data-toggle="table" data-sortable="true">
                                         <thead>
                                             <tr class="text-center">
-                                                <th data-sortable="true">No#</th>
+                                                <th data-sortable="true">No</th>
                                                 <th data-sortable="true">Name</th>
                                                 <th data-sortable="true">Type</th>
                                                 <th data-sortable="true">Code</th>

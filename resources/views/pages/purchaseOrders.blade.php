@@ -1497,7 +1497,10 @@
                         const amountWithTaxes = amount + ppnAmount - pphAmount;
 
                         // Update jumlah untuk item ini di tabel
-                        $row.find('.amount-cell').text(amountWithTaxes.toLocaleString('id-ID'));
+                        $row.find('.amount-cell').text(new Intl.NumberFormat('id-ID', {
+                            style: 'currency',
+                            currency: 'IDR'
+                        }).format(amountWithTaxes));
 
                         // Tambahkan amount item ini ke subtotal dan total PPN serta PPh
                         subTotal += amount;
@@ -1512,14 +1515,27 @@
                     });
 
                     // Update total keseluruhan di footer
-                    $('#detailPurchaseOrderModal #subTotal').text(subTotal.toLocaleString('id-ID'));
-                    $('#detailPurchaseOrderModal #totalPpn').text(totalPpn.toLocaleString('id-ID'));
-                    $('#detailPurchaseOrderModal #totalPph').text(totalPph.toLocaleString('id-ID'));
-                    $('#detailPurchaseOrderModal #totalAll').text((subTotal + totalPpn - totalPph).toLocaleString(
-                        'id-ID'));
+                    $('#detailPurchaseOrderModal #subTotal').text(new Intl.NumberFormat('id-ID', {
+                        style: 'currency',
+                        currency: 'IDR'
+                    }).format(subTotal));
+                    $('#detailPurchaseOrderModal #totalPpn').text(new Intl.NumberFormat('id-ID', {
+                        style: 'currency',
+                        currency: 'IDR'
+                    }).format(totalPpn));
+                    $('#detailPurchaseOrderModal #totalPph').text(new Intl.NumberFormat('id-ID', {
+                        style: 'currency',
+                        currency: 'IDR'
+                    }).format(totalPph));
+                    $('#detailPurchaseOrderModal #totalAll').text(new Intl.NumberFormat('id-ID', {
+                        style: 'currency',
+                        currency: 'IDR'
+                    }).format(subTotal + totalPpn - totalPph));
                     if (exchangeRateToIDR && exchangeRateToIDR !== 1) {
-                        $('#detailPurchaseOrderModal #totalInIDR').text(totalInIDR.toLocaleString(
-                            'id-ID')); // Update nilai total IDR
+                        $('#detailPurchaseOrderModal #totalInIDR').text(new Intl.NumberFormat('id-ID', {
+                            style: 'currency',
+                            currency: 'IDR'
+                        }).format(totalInIDR));
                     }
                 }
                 $(document).on('input', '.quantity-input', function() {
@@ -1564,169 +1580,189 @@
                                 var totalPph = 0;
                                 var totalInIDR = 0;
                                 var promises = [];
+                                var exchangeRateToIDR = 1; // Default to 1 (IDR)
 
-                                // 1. Display Items (Barang)
-                                if (response.items && response.items.length > 0) {
-                                    response.items.forEach(function(item, index) {
-                                        var rowClass = ''
-                                        if (item.total_quantity < item.minimum_quantity) {
-                                            rowClass = 'bg-light-red';
-                                        }
-                                        var amount = parseFloat(item.price) * parseFloat(
-                                            item.quantity);
-                                        var ppnAmount = amount * (parseFloat(item.ppn) /
-                                            100);
-                                        subTotal += amount;
-                                        totalPpn += ppnAmount;
-                                        var amountWithPpn = (amount + ppnAmount)
-                                            .toLocaleString('id-ID');
+                                // Fetch exchange rate if the currency is not IDR
+                                if (response.PO.currency !== 'IDR') {
+                                    let conversionPromise = $.ajax({
+                                        url: `https://api.frankfurter.app/${response.PO.purchase_date}?from=${response.PO.currency}&to=IDR`,
+                                        method: 'GET',
+                                    }).done(function(rateResponse) {
+                                        exchangeRateToIDR = rateResponse.rates
+                                            .IDR; // Store the conversion rate
+                                    });
+                                    promises.push(conversionPromise);
+                                }
 
-                                        var row = `
-                                            <tr class="text-center ${rowClass}" data-poi-id="${item.poi_id}">
-                                                <td>${index + 1}</td>
-                                                <td>${item.item_pms}</td>
-                                                <td>${item.item_name}</td>
-                                                <td>
-                                                    <input type="number" class="form-control text-center quantity-input" value="${item.quantity}" 
-                                                        ${item.status === 'Selesai' ? 'readonly' : ''}/>
-                                                </td>
-                                                <td>${item.item_unit}</td>
-                                                <td>${item.condition}</td>
-                                                <td class="price-cell" data-price="${item.price}">${parseFloat(item.price).toLocaleString('id-ID')}</td>
-                                                <td class="ppn-cell" data-ppn="${item.ppn}">${item.ppn}</td>
-                                                <td></td>
-                                                <td>${item.item_option}</td>
-                                                <td>${item.utility}</td>
-                                                <td>
-                                                    <a href="#" class="pr-link" data-pr-number="${item.purchase_request_number}" data-ship-id="${item.ship_id}">
-                                                        ${item.purchase_request_number}
-                                                    </a>
-                                                </td>
-                                                <td>${item.status}</td>
-                                                <td class="amount-cell">${amountWithPpn.toLocaleString('id-ID')}</td>
+                                // Function to process items and services after fetching exchange rate
+                                function processItemsAndServices() {
+                                    // 1. Display Items (Barang)
+                                    if (response.items && response.items.length > 0) {
+                                        response.items.forEach(function(item, index) {
+                                            var rowClass = '';
+                                            if (item.total_quantity < item
+                                                .minimum_quantity) {
+                                                rowClass = 'bg-light-red';
+                                            }
+
+                                            var amount = parseFloat(item.price) *
+                                                parseFloat(item.quantity);
+                                            var ppnAmount = amount * (parseFloat(item.ppn) /
+                                                100);
+                                            subTotal += amount;
+                                            totalPpn += ppnAmount;
+
+                                            // Calculate amount with PPN in original currency
+                                            var amountWithPpn = amount + ppnAmount;
+
+                                            // Convert to IDR if necessary
+                                            var amountInIDR = amountWithPpn *
+                                                exchangeRateToIDR;
+                                            totalInIDR += amountInIDR;
+
+                                            var row = `
+                                                            <tr class="text-center ${rowClass}" data-poi-id="${item.poi_id}">
+                                                                <td>${index + 1}</td>
+                                                                <td>${item.item_pms}</td>
+                                                                <td>${item.item_name}</td>
+                                                                <td>
+                                                                    <input type="number" class="form-control text-center quantity-input" value="${item.quantity}" 
+                                                                        ${item.status === 'Selesai' ? 'readonly' : ''}/>
+                                                                </td>
+                                                                <td>${item.item_unit}</td>
+                                                                <td>${item.condition}</td>
+                                                                <td class="price-cell" data-price="${item.price}">${new Intl.NumberFormat('id-ID', {
+                                                                    style: 'currency',
+                                                                    currency: response.PO.currency
+                                                                }).format(item.price)}</td>
+                                                                <td class="ppn-cell" data-ppn="${item.ppn}">${item.ppn}</td>
+                                                                <td></td>
+                                                                <td>${item.item_option}</td>
+                                                                <td>${item.utility}</td>
+                                                                <td>
+                                                                    <a href="#" class="pr-link" data-pr-number="${item.purchase_request_number}" data-ship-id="${item.ship_id}">
+                                                                        ${item.purchase_request_number}
+                                                                    </a>
+                                                                </td>
+                                                                <td>${item.status}</td>
+                                                                <td class="amount-cell">${new Intl.NumberFormat('id-ID', {
+                                                                    style: 'currency',
+                                                                    currency: response.PO.currency
+                                                                }).format(amountWithPpn)}</td>
+                                                        </tr>
+                                                        `;
+                                            $('#temporaryItem tbody').append(row);
+                                        });
+                                    }
+
+                                    // 2. Add Separator for Services
+                                    if (response.services && response.services.length > 0) {
+                                        $('#temporaryItem tbody').append(`
+                                            <tr class="text-center jasa-separator">
+                                                <td colspan="14"><strong>Services (Jasa)</strong></td>
                                             </tr>
-                                        `;
-                                        $('#temporaryItem tbody').append(row);
+                                        `);
 
-                                        // Handle currency conversion if not in IDR
-                                        if (response.PO.currency !== 'IDR') {
-                                            let conversionPromise = $.ajax({
-                                                url: `https://api.frankfurter.app/${response.PO.purchase_date}?from=${response.PO.currency}&to=IDR`,
-                                                method: 'GET'
-                                            }).done(function(rateResponse) {
-                                                exchangeRateToIDR = rateResponse
-                                                    .rates.IDR;
-                                                var conversionRate = rateResponse
-                                                    .rates.IDR;
-                                                var convertedAmount = amount *
-                                                    conversionRate;
-                                                totalInIDR += convertedAmount;
-                                            });
-                                            promises.push(conversionPromise);
-                                        } else {
-                                            totalInIDR += amount; // Already in IDR
-                                        }
-                                    });
-                                } else {}
+                                        // 3. Display Services (Jasa)
+                                        response.services.forEach(function(service, index) {
+                                            var price = parseFloat(service.price);
+                                            var amount = price *
+                                                1; // Services always have quantity = 1
+                                            var ppnAmount = amount * (parseFloat(service
+                                                .ppn) / 100);
+                                            var pphAmount = amount * (parseFloat(service
+                                                .pph) / 100);
 
-                                // 2. Add Separator for Services
-                                if (response.services && response.services.length > 0) {
-                                    $('#temporaryItem tbody').append(`
-                                    <tr class="text-center jasa-separator">
-                                        <td colspan="14"><strong>Services (Jasa)</strong></td>
-                                    </tr>
-                                `);
+                                            subTotal += amount;
+                                            totalPpn += ppnAmount;
+                                            totalPph += pphAmount;
 
-                                    // 3. Display Services (Jasa)
-                                    response.services.forEach(function(service, index) {
-                                        var cekPPN = service.ppn ? service.ppn : "0";
-                                        var cekPPH = service.pph ? service.pph : "0";
-                                        var price = parseFloat(service.price);
-                                        var quantity = 1;
-                                        var amount = price * quantity;
+                                            // Calculate amount with taxes in original currency
+                                            var amountWithTaxes = amount + ppnAmount -
+                                                pphAmount;
 
-                                        // Hitung PPN dan PPh jasa
-                                        var ppnAmount = amount * (parseFloat(cekPPN) / 100);
-                                        var pphAmount = amount * (parseFloat(cekPPH) / 100);
+                                            // Convert to IDR if necessary
+                                            var amountInIDR = amountWithTaxes *
+                                                exchangeRateToIDR;
+                                            totalInIDR += amountInIDR;
 
-                                        // Tambahkan jasa ke Sub Total dan PPN serta PPh ke total masing-masing
-                                        subTotal += amount;
-                                        totalPpn += ppnAmount;
-                                        totalPph += pphAmount;
+                                            var row = `
+                                                    <tr class="text-center">
+                                                        <td>Jasa</td>
+                                                        <td>${service.service_code}</td>
+                                                        <td>${service.service_name}</td>
+                                                        <td>1</td>
+                                                        <td></td>
+                                                        <td></td>
+                                                        <td>${new Intl.NumberFormat('id-ID', {
+                                                            style: 'currency',
+                                                            currency: response.PO.currency
+                                                        }).format(service.price)}</td>
+                                                        <td>${service.ppn}</td>
+                                                        <td>${service.pph}</td>
+                                                        <td></td>
+                                                        <td>${service.utility}</td>
+                                                        <td>
+                                                            <a href="#" class="pr-link" data-pr-number="${service.purchase_request_number}" data-ship-id="${service.ship_id}">
+                                                                ${service.purchase_request_number}
+                                                            </a>
+                                                        </td>
+                                                        <td>${service.status}</td>
+                                                        <td>${new Intl.NumberFormat('id-ID', {
+                                                            style: 'currency',
+                                                            currency: response.PO.currency
+                                                        }).format(amountWithTaxes)}</td>
+                                                    </tr>
+                                                `;
+                                            $('#temporaryItem tbody').append(row);
+                                        });
+                                    }
 
-                                        var amountWithTaxes = amount + ppnAmount -
-                                            pphAmount;
+                                    // 4. Update Total Values
+                                    $('#detailPurchaseOrderModal #subTotal').text(new Intl
+                                        .NumberFormat('id-ID', {
+                                            style: 'currency',
+                                            currency: response.PO.currency
+                                        }).format(subTotal));
+                                    $('#detailPurchaseOrderModal #totalPpn').text(new Intl
+                                        .NumberFormat('id-ID', {
+                                            style: 'currency',
+                                            currency: response.PO.currency
+                                        }).format(totalPpn));
+                                    $('#detailPurchaseOrderModal #totalPph').text(new Intl
+                                        .NumberFormat('id-ID', {
+                                            style: 'currency',
+                                            currency: response.PO.currency
+                                        }).format(totalPph));
+                                    $('#detailPurchaseOrderModal #totalAll').text(new Intl
+                                        .NumberFormat('id-ID', {
+                                            style: 'currency',
+                                            currency: response.PO.currency
+                                        }).format(subTotal + totalPpn - totalPph));
 
-                                        // Handle service fields yang mungkin null (misalnya dari service-list)
-                                        var serviceCode = service.service_code ? service
-                                            .service_code : "";
-                                        var serviceName = service.service_name ? service
-                                            .service_name : "";
-                                        var purchaseRequestNumber = service
-                                            .purchase_request_number ? service
-                                            .purchase_request_number : "";
-                                        var ppn = service.ppn ? service.ppn : "0";
-                                        var pph = service.pph ? service.pph : "0";
-                                        var utility = service.utility ? service.utility :
-                                            "";
-                                        var servicePRLink = purchaseRequestNumber !== "" ?
-                                            `<a href="#" class="pr-link" data-pr-number="${purchaseRequestNumber}" data-ship-id="${service.ship_id}">
-                                        ${purchaseRequestNumber}</a>` : purchaseRequestNumber;
-
-                                        // Pastikan service.price dalam bentuk angka sebelum diformat
-                                        var formattedPrice = parseFloat(service.price)
-                                            .toLocaleString('id-ID');
-                                        var formattedPpnAmount = ppnAmount.toLocaleString(
-                                            'id-ID');
-                                        var formattedPph = parseFloat(pph).toString();
-
-                                        // Menampilkan hasil pada tabel
-                                        var row = `
-                                        <tr class="text-center">
-                                            <td>Jasa</td>
-                                            <td>${serviceCode}</td>
-                                            <td>${serviceName}</td>
-                                            <td>1</td>
-                                            <td></td>
-                                            <td></td>
-                                            <td>${formattedPrice}</td>
-                                            <td>${ppn}</td>
-                                            <td>${formattedPph}</td>
-                                            <td></td>
-                                            <td>${utility}</td>
-                                            <td>${servicePRLink}</td>
-                                            <td>${service.status}</td>
-                                            <td>${amountWithTaxes.toLocaleString(
-                                            'id-ID')}</td>
-                                        </tr>
-                                            `;
-                                        $('#temporaryItem tbody').append(row);
-
-                                        // Tambahkan harga jasa ke total (anggap jasa dalam IDR)
-                                        totalInIDR += amount;
-                                    });
+                                    // Display total in IDR if necessary
+                                    if (response.PO.currency !== 'IDR') {
+                                        $('#detailPurchaseOrderModal #totalInIDR').text(new Intl
+                                            .NumberFormat('id-ID', {
+                                                style: 'currency',
+                                                currency: 'IDR'
+                                            }).format(totalInIDR));
+                                    }
                                 }
 
                                 // Wait for all currency conversion requests to complete
                                 $.when.apply($, promises).done(function() {
-                                    // Update the totals in the modal
-                                    $('#detailPurchaseOrderModal #subTotal').text(subTotal
-                                        .toLocaleString('id-ID'));
-                                    $('#detailPurchaseOrderModal #totalPpn').text(totalPpn
-                                        .toLocaleString(
-                                            'id-ID'));
-                                    $('#detailPurchaseOrderModal #totalPph').text(totalPph
-                                        .toLocaleString('id-ID'));
-                                    $('#detailPurchaseOrderModal #totalAll').text((
-                                            subTotal + totalPpn - totalPph)
-                                        .toLocaleString('id-ID'));
+                                    processItemsAndServices();
 
-                                    // Display total in IDR if necessary
-                                    if (itemData.currency !== 'IDR' && totalInIDR > 0) {
+                                    // Tambahkan logika untuk menampilkan Total in IDR
+                                    if (response.PO.currency !== 'IDR' && totalInIDR > 0) {
                                         var totalInIDRRow = `
                                             <tr class="text-center idr-total-row">
                                                 <td colspan="13" style="text-align: right; font-weight: bold;">Total in IDR</td>
-                                                <td id="totalInIDR">${totalInIDR.toLocaleString('id-ID')}</td>
+                                                <td id="totalInIDR">${new Intl.NumberFormat('id-ID', {
+                                                    style: 'currency',
+                                                    currency: 'IDR'
+                                                }).format(totalInIDR)}</td>
                                             </tr>
                                         `;
                                         $('#temporaryItem tfoot').append(totalInIDRRow);
@@ -1887,7 +1923,10 @@
                                                 <td>${item.quantity}</td>
                                                 <td>${item.item_unit}</td>
                                                 <td>${item.condition}</td>
-                                                <td>${parseFloat(item.price).toLocaleString('id-ID')}</td>
+                                                <td>${new Intl.NumberFormat('id-ID', {
+                                                    style: 'currency',
+                                                    currency: 'IDR'
+                                                }).format(item.price)}</td>
                                                 <td>${item.ppn}</td>
                                                 <td></td>
                                                 <td>${item.item_option}</td>
@@ -1899,7 +1938,10 @@
                                                 </td>
                                                 <td>${item.purchase_order_number}</td>
                                                 <td>${item.supplier_name}</td>
-                                                <td>${amountWithPpn.toLocaleString('id-ID')}</td>
+                                                <td>${new Intl.NumberFormat('id-ID', {
+                                                    style: 'currency',
+                                                    currency: 'IDR'
+                                                }).format(amountWithPpn)}</td>
                                             </tr>
                                         `;
                                         $('#detailLPJModal #temporaryItem tbody').append(
@@ -1944,7 +1986,10 @@
                                                     <td>1</td>
                                                     <td></td>
                                                     <td></td>
-                                                    <td>${price.toLocaleString('id-ID')}</td>
+                                                    <td>${new Intl.NumberFormat('id-ID', {
+                                                    style: 'currency',
+                                                    currency: 'IDR'
+                                                }).format(price)}</td>
                                                     <td>${cekPPN}</td>
                                                     <td>${cekPPH}</td>
                                                     <td></td>
@@ -1952,7 +1997,10 @@
                                                     <td>${service.purchase_request_number || ''}</td>
                                                     <td>${service.purchase_order_number}</td>
                                                     <td>${service.supplier_name}</td>
-                                                    <td>${amountWithTaxes.toLocaleString('id-ID')}</td>
+                                                    <td>${new Intl.NumberFormat('id-ID', {
+                                                    style: 'currency',
+                                                    currency: 'IDR'
+                                                }).format(amountWithTaxes)}</td>
                                                 </tr>
                                             `;
                                         $('#detailLPJModal #temporaryItem tbody').append(
@@ -1961,14 +2009,22 @@
                                 }
 
                                 // Update the totals in the modal
-                                $('#detailLPJModal #subTotal').text(subTotal.toLocaleString(
-                                    'id-ID'));
-                                $('#detailLPJModal #totalPpn').text(totalPpn.toLocaleString(
-                                    'id-ID'));
-                                $('#detailLPJModal #totalPph').text(totalPph.toLocaleString(
-                                    'id-ID'));
-                                $('#detailLPJModal #totalAll').text((subTotal + totalPpn - totalPph)
-                                    .toLocaleString('id-ID'));
+                                $('#detailLPJModal #subTotal').text(new Intl.NumberFormat('id-ID', {
+                                    style: 'currency',
+                                    currency: 'IDR'
+                                }).format(subTotal));
+                                $('#detailLPJModal #totalPpn').text(new Intl.NumberFormat('id-ID', {
+                                    style: 'currency',
+                                    currency: 'IDR'
+                                }).format(totalPpn));
+                                $('#detailLPJModal #totalPph').text(new Intl.NumberFormat('id-ID', {
+                                    style: 'currency',
+                                    currency: 'IDR'
+                                }).format(totalPph));
+                                $('#detailLPJModal #totalAll').text(new Intl.NumberFormat('id-ID', {
+                                    style: 'currency',
+                                    currency: 'IDR'
+                                }).format(subTotal + totalPpn - totalPPh));
                             },
                             error: function() {
                                 console.log('Error loading data');
@@ -2205,8 +2261,10 @@
                                     .append($('<td></td>').text(item.purchase_request_items.items
                                         .item_unit))
                                     .append($('<td></td>').text(item.condition))
-                                    .append($('<td></td>').text(parseInt(item.price).toLocaleString(
-                                        'id-ID'))) // Format harga
+                                    .append($('<td></td>').text(new Intl.NumberFormat('id-ID', {
+                                        style: 'currency',
+                                        currency: 'IDR'
+                                    }).format(item.price))) // Format harga
                                     .append($('<td></td>').text(item.ppn))
                                     .append($('<td></td>').text(''))
                                     .append($('<td></td>').text(item.purchase_request_items.option))
@@ -2214,8 +2272,10 @@
                                         .utility))
                                     .append($('<td></td>').text(item.purchase_request_items
                                         .purchase_request.purchase_request_number))
-                                    .append($('<td></td>').text(parseInt(itemAmount).toLocaleString(
-                                        'id-ID'))); // Format amount
+                                    .append($('<td></td>').text(new Intl.NumberFormat('id-ID', {
+                                        style: 'currency',
+                                        currency: 'IDR'
+                                    }).format(itemAmount))); // Format amount
 
                                 // Jika ada separator jasa, tambahkan items di atasnya
                                 if (jasaSeparatorAdded) {
@@ -2266,15 +2326,19 @@
                                         '1')) // Jasa tidak punya kuantitas selain "1"
                                     .append($('<td></td>').text('')) // Kosongkan kolom unit
                                     .append($('<td></td>').text('')) // Kosongkan kolom condition
-                                    .append($('<td></td>').text(parseInt(service.price)
-                                        .toLocaleString('id-ID'))) // Format harga
+                                    .append($('<td></td>').text(new Intl.NumberFormat('id-ID', {
+                                        style: 'currency',
+                                        currency: 'IDR'
+                                    }).format(service.price))) // Format harga
                                     .append($('<td></td>').text(service.ppn))
                                     .append($('<td></td>').text(formattedPph))
                                     .append($('<td></td>').text('')) // Kosongkan kolom option
                                     .append($('<td></td>').text(serviceUtility))
                                     .append($('<td></td>').text(purchaseRequestNumber))
-                                    .append($('<td></td>').text(parseInt(serviceAmount)
-                                        .toLocaleString('id-ID'))); // Format amount
+                                    .append($('<td></td>').text(new Intl.NumberFormat('id-ID', {
+                                        style: 'currency',
+                                        currency: 'IDR'
+                                    }).format(serviceAmount))); // Format amount
 
                                 tableBody.append(newRow);
                             });
@@ -2330,10 +2394,22 @@
                     });
 
                     // Update sub total, PPN, PPh, dan total keseluruhan dengan format rupiah
-                    $('#addLPJModal #subTotalLPJ').text(totalAmount.toLocaleString('id-ID'));
-                    $('#addLPJModal #totalPpnLPJ').text(totalPpn.toLocaleString('id-ID'));
-                    $('#addLPJModal #totalPphLPJ').text(totalPph.toLocaleString('id-ID'));
-                    $('#addLPJModal #totalAllLPJ').text((totalAmount + totalPpn - totalPph).toLocaleString('id-ID'));
+                    $('#addLPJModal #subTotalLPJ').text(new Intl.NumberFormat('id-ID', {
+                        style: 'currency',
+                        currency: 'IDR'
+                    }).format(totalAmount));
+                    $('#addLPJModal #totalPpnLPJ').text(new Intl.NumberFormat('id-ID', {
+                        style: 'currency',
+                        currency: 'IDR'
+                    }).format(totalPpn));
+                    $('#addLPJModal #totalPphLPJ').text(new Intl.NumberFormat('id-ID', {
+                        style: 'currency',
+                        currency: 'IDR'
+                    }).format(totalPph));
+                    $('#addLPJModal #totalAllLPJ').text(new Intl.NumberFormat('id-ID', {
+                        style: 'currency',
+                        currency: 'IDR'
+                    }).format(totalAmount + totalPpn - totalPph));
                 }
 
                 function toggleSubmitButton() {

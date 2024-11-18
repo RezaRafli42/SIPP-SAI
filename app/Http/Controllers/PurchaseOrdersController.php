@@ -20,6 +20,8 @@ use App\Models\PurchaseOrders as PurchaseOrders;
 use App\Models\PurchaseOrderItems as PurchaseOrderItems;
 use App\Models\PurchaseOrderServices as PurchaseOrderServices;
 use App\Models\Suppliers;
+use App\Models\ExpenseAccountDetails as ExpenseAccountDetails;
+use App\Models\ExpenseAccounts as ExpenseAccounts;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
@@ -519,9 +521,6 @@ class PurchaseOrdersController extends Controller
 
   public function addPurchaseOrders(Request $request)
   {
-    // Debugging untuk melihat semua input yang diterima
-    // dd($request->all());
-
     // Validasi nomor PO jika berstatus Draft
     if ($request->input('purchase_order_number') === 'Draft-' || (Str::startsWith($request->input('purchase_order_number'), 'Draft-') && strlen($request->input('purchase_order_number')) <= 6)) {
       return redirect()->back()->with('swal-fail', 'Please fill out the PO Draft number fields');
@@ -576,12 +575,36 @@ class PurchaseOrdersController extends Controller
           $purchaseOrderItem->status = Str::startsWith($purchaseOrder->purchase_order_number, 'Draft-') ? 'Menunggu LPJ' : 'Diajukan';
           $purchaseOrderItem->save();
 
-          // Update status Purchase Request Item menjadi "Diproses" jika PO adalah Draft
+          // Hanya record ke expense_account_details jika PO adalah Draft
           if (Str::startsWith($purchaseOrder->purchase_order_number, 'Draft-')) {
-            $purchaseRequestItem = PurchaseRequestItems::find($purchase_request_item_id);
+            $purchaseRequestItem = PurchaseRequestItems::find($purchaseOrderItem->purchase_request_item_id);
             if ($purchaseRequestItem) {
-              $purchaseRequestItem->status = 'Diproses';
-              $purchaseRequestItem->save();
+              $item = Items::find($purchaseRequestItem->item_id);
+              if ($item) {
+                $accountId = $item->account_id;
+
+                // Hitung jumlah amount (quantity * price)
+                $amount = $purchaseOrderItem->quantity * $purchaseOrderItem->price;
+
+                // Simpan ke expense_account_details
+                $expenseDetail = ExpenseAccountDetails::where('account_id', $accountId)
+                  ->where('purchase_order_item_id', $purchaseOrderItem->id)
+                  ->first();
+
+                if ($expenseDetail) {
+                  // Jika sudah ada, tambahkan amount
+                  $expenseDetail->amount += $amount;
+                  $expenseDetail->save();
+                } else {
+                  // Jika belum ada, buat entri baru
+                  ExpenseAccountDetails::create([
+                    'account_id' => $accountId,
+                    'purchase_order_item_id' => $purchaseOrderItem->id,
+                    'purchase_order_service_id' => null,
+                    'amount' => $amount,
+                  ]);
+                }
+              }
             }
           }
         }
@@ -594,14 +617,15 @@ class PurchaseOrdersController extends Controller
           $purchaseOrderService->purchase_order_id = $purchaseOrder->id;
           $purchaseOrderService->status = Str::startsWith($purchaseOrder->purchase_order_number, 'Draft-') ? 'Menunggu LPJ' : 'Diajukan';
 
-          // Jika purchase_request_service_id dimulai dengan 'service-', ini adalah jasa dari Service List, bukan PR
           if (Str::startsWith($purchase_request_service_id, 'service-')) {
-            $actualServiceId = substr($purchase_request_service_id, strlen('service-'));  // Ambil ID setelah 'service-'
-            $purchaseOrderService->purchase_request_service_id = null;  // Set purchase_request_service_id ke null
-            $purchaseOrderService->service_id = $actualServiceId;  // Isi dengan ID dari tabel services
+            // Service dari Service List
+            $actualServiceId = substr($purchase_request_service_id, strlen('service-'));
+            $purchaseOrderService->purchase_request_service_id = null;
+            $purchaseOrderService->service_id = $actualServiceId;
           } else {
+            // Service dari PRS
             $purchaseOrderService->purchase_request_service_id = $purchase_request_service_id == 0 ? null : $purchase_request_service_id;
-            $purchaseOrderService->service_id = null;  // Set service_id ke null karena ini bukan dari service-list
+            $purchaseOrderService->service_id = null;
           }
 
           // Simpan informasi lain terkait service
@@ -611,58 +635,52 @@ class PurchaseOrdersController extends Controller
           $purchaseOrderService->pph = $pphService;
           $purchaseOrderService->utility = $request->input('utility')[$index] ?? '';
 
-          // Set status jasa sesuai dengan status PO
+          // Simpan purchase order service
           $purchaseOrderService->save();
 
-          // **Update status Purchase Request Service menjadi "Diproses" jika PO adalah Draft**
+          // Hanya record ke expense_account_details jika PO adalah Draft
           if (Str::startsWith($purchaseOrder->purchase_order_number, 'Draft-')) {
-            $purchaseRequestService = PurchaseRequestServices::find($purchase_request_service_id);
-            if ($purchaseRequestService) {
-              $purchaseRequestService->status = 'Diproses';
-              $purchaseRequestService->save();
+            if ($purchaseOrderService->purchase_request_service_id) {
+              // Jika menarik dari PRS, cari Service terkait dari PRS
+              $purchaseRequestService = PurchaseRequestServices::find($purchaseOrderService->purchase_request_service_id);
+              if ($purchaseRequestService) {
+                $service = Services::find($purchaseRequestService->service_id);
+              } else {
+                throw new \Exception("Purchase Request Service with ID {$purchaseOrderService->purchase_request_service_id} not found.");
+              }
+            } else {
+              // Jika langsung dari Service List
+              $service = Services::find($purchaseOrderService->service_id);
+            }
+
+            if ($service) {
+              $accountId = $service->account_id;
+
+              // Hitung jumlah amount (hanya price karena service tidak punya quantity)
+              $amount = $purchaseOrderService->price;
+
+              // Simpan ke expense_account_details
+              $expenseDetail = ExpenseAccountDetails::where('account_id', $accountId)
+                ->where('purchase_order_service_id', $purchaseOrderService->id)
+                ->first();
+
+              if ($expenseDetail) {
+                // Jika sudah ada, tambahkan amount
+                $expenseDetail->amount += $amount;
+                $expenseDetail->save();
+              } else {
+                // Jika belum ada, buat entri baru
+                ExpenseAccountDetails::create([
+                  'account_id' => $accountId,
+                  'purchase_order_item_id' => null,
+                  'purchase_order_service_id' => $purchaseOrderService->id,
+                  'amount' => $amount,
+                ]);
+              }
             }
           }
         }
       }
-
-      // Update status PR hanya jika purchase_order_number dimulai dengan 'Draft-'
-      if (Str::startsWith($purchaseOrder->purchase_order_number, 'Draft-')) {
-        $purchaseRequestId = $request->purchase_request_item_id[0] ?? $request->purchase_request_service_id[0];
-        if ($purchaseRequestId) {
-          $purchaseRequest = PurchaseRequestItems::find($purchaseRequestId)?->purchaseRequest
-            ?? PurchaseRequestServices::find($purchaseRequestId)?->purchaseRequest;
-          if ($purchaseRequest) {
-            // Mengambil semua items dan services dari purchase_request yang terkait
-            $allPurchaseRequestItems = PurchaseRequestItems::where('purchase_request_id', $purchaseRequest->id)->get();
-            $allPurchaseRequestServices = PurchaseRequestServices::where('purchase_request_id', $purchaseRequest->id)->get();
-
-            $allProcessed = true;
-            foreach ($allPurchaseRequestItems as $item) {
-              if ($item->status !== 'Diproses') {
-                $allProcessed = false;
-                break;
-              }
-            }
-
-            foreach ($allPurchaseRequestServices as $service) {
-              if ($service->status !== 'Diproses') {
-                $allProcessed = false;
-                break;
-              }
-            }
-
-            // Update status Purchase Request berdasarkan status semua items dan services
-            $purchaseRequest->status = $allProcessed ? 'Terproses' : 'Sebagian Diproses';
-            $purchaseRequest->save();
-          }
-        }
-      }
-
-      // Log tindakan yang dilakukan
-      Logs::create([
-        'user_id' => Auth::user()->id,
-        'action' => 'Created Purchase Order ' . $request->input('purchase_order_number') . '.',
-      ]);
 
       // Commit transaksi
       DB::commit();
@@ -718,7 +736,6 @@ class PurchaseOrdersController extends Controller
 
   public function acceptPurchaseOrders(Request $request)
   {
-    // dd($request->all());
     try {
       DB::beginTransaction();
 
@@ -726,6 +743,20 @@ class PurchaseOrdersController extends Controller
       $purchaseOrders = PurchaseOrders::findOrFail($request->po_id);
       $purchaseOrders->status = "Menunggu Diproses";
       $purchaseOrders->save();
+
+      // Periksa apakah currency adalah selain IDR
+      $currency = $purchaseOrders->currency;
+      $exchangeRate = 1; // Default jika IDR
+
+      if ($currency !== 'IDR') {
+        // Ambil nilai kurs konversi (gunakan API atau database lokal untuk kurs)
+        $purchaseDate = $purchaseOrders->purchase_date;
+        $exchangeRate = $this->getExchangeRate($currency, 'IDR', $purchaseDate);
+
+        if (!$exchangeRate) {
+          throw new \Exception("Exchange rate for {$currency} to IDR on {$purchaseDate} not found.");
+        }
+      }
 
       // Mengubah status setiap item di Purchase Order menjadi "Menunggu Diproses"
       $purchaseOrderItems = PurchaseOrderItems::where('purchase_order_id', $request->po_id)->get();
@@ -738,6 +769,38 @@ class PurchaseOrdersController extends Controller
           $purchaseRequestItem = PurchaseRequestItems::findOrFail($item->purchase_request_item_id);
           $purchaseRequestItem->status = "Diproses";
           $purchaseRequestItem->save();
+        }
+
+        // **Tambahkan ke Expense Account Details**
+        $purchaseRequestItem = PurchaseRequestItems::find($item->purchase_request_item_id);
+        if ($purchaseRequestItem) {
+          $relatedItem = Items::find($purchaseRequestItem->item_id);
+          if ($relatedItem) {
+            $accountId = $relatedItem->account_id;
+
+            // Hitung jumlah amount dan konversi ke IDR jika perlu
+            $amount = $item->quantity * $item->price;
+            $amountInIDR = $amount * $exchangeRate;
+
+            // Simpan ke expense_account_details
+            $expenseDetail = ExpenseAccountDetails::where('account_id', $accountId)
+              ->where('purchase_order_item_id', $item->id)
+              ->first();
+
+            if ($expenseDetail) {
+              // Jika sudah ada, tambahkan amount
+              $expenseDetail->amount += $amountInIDR;
+              $expenseDetail->save();
+            } else {
+              // Jika belum ada, buat entri baru
+              ExpenseAccountDetails::create([
+                'account_id' => $accountId,
+                'purchase_order_item_id' => $item->id,
+                'purchase_order_service_id' => null,
+                'amount' => $amountInIDR,
+              ]);
+            }
+          }
         }
       }
 
@@ -753,69 +816,48 @@ class PurchaseOrdersController extends Controller
           $purchaseRequestService->status = "Diproses";
           $purchaseRequestService->save();
         }
-      }
 
-      // Jika tidak ada item atau service, lempar pengecualian
-      if ($purchaseOrderItems->isEmpty() && $purchaseOrderServices->isEmpty()) {
-        throw new \Exception('Tidak ada item atau service untuk Purchase Order ini.');
-      }
+        // **Tambahkan ke Expense Account Details**
+        if ($service->purchase_request_service_id) {
+          $purchaseRequestService = PurchaseRequestServices::find($service->purchase_request_service_id);
+          if ($purchaseRequestService) {
+            $relatedService = Services::find($purchaseRequestService->service_id);
+          } else {
+            throw new \Exception("Purchase Request Service with ID {$service->purchase_request_service_id} not found.");
+          }
+        } else {
+          $relatedService = Services::find($service->service_id);
+        }
 
-      // Mengambil Purchase Request ID dari service pertama yang memiliki relasi ke Purchase Request
-      $purchaseRequestId = null;
-      if (!$purchaseOrderItems->isEmpty() && $purchaseOrderItems->first()->purchaseRequestItems) {
-        $purchaseRequestId = optional($purchaseOrderItems->first()->purchaseRequestItems)->purchase_request_id;
-      } elseif (!$purchaseOrderServices->isEmpty()) {
-        foreach ($purchaseOrderServices as $service) {
-          // Hanya ambil purchase_request_id jika ada relasi dengan PurchaseRequestService
-          if ($service->purchase_request_service_id) {
-            $purchaseRequestService = PurchaseRequestServices::find($service->purchase_request_service_id);
-            if ($purchaseRequestService) {
-              $purchaseRequestId = $purchaseRequestService->purchase_request_id;
-              break; // Keluar dari loop jika sudah menemukan purchase_request_id
-            }
+        if ($relatedService) {
+          $accountId = $relatedService->account_id;
+
+          // Hitung jumlah amount dan konversi ke IDR jika perlu
+          $amount = $service->price;
+          $amountInIDR = $amount * $exchangeRate;
+
+          // Simpan ke expense_account_details
+          $expenseDetail = ExpenseAccountDetails::where('account_id', $accountId)
+            ->where('purchase_order_service_id', $service->id)
+            ->first();
+
+          if ($expenseDetail) {
+            // Jika sudah ada, tambahkan amount
+            $expenseDetail->amount += $amountInIDR;
+            $expenseDetail->save();
+          } else {
+            // Jika belum ada, buat entri baru
+            ExpenseAccountDetails::create([
+              'account_id' => $accountId,
+              'purchase_order_item_id' => null,
+              'purchase_order_service_id' => $service->id,
+              'amount' => $amountInIDR,
+            ]);
           }
         }
       }
 
-      if ($purchaseRequestId) {
-        // Mengambil semua items dan services terkait dalam Purchase Request
-        $allPurchaseRequestItems = PurchaseRequestItems::where('purchase_request_id', $purchaseRequestId)->get();
-        $allPurchaseRequestServices = PurchaseRequestServices::where('purchase_request_id', $purchaseRequestId)->get();
-
-        // Pengecekan apakah semua Purchase Request Items dan Services berstatus "Diproses"
-        $allProcessed = true;
-
-        // Pengecekan untuk semua Purchase Request Items
-        foreach ($allPurchaseRequestItems as $item) {
-          if ($item->status !== 'Diproses') {
-            $allProcessed = false;
-            break;
-          }
-        }
-
-        // Pengecekan untuk semua Purchase Request Services
-        if ($allProcessed) {
-          foreach ($allPurchaseRequestServices as $service) {
-            if ($service->status !== 'Diproses') {
-              $allProcessed = false;
-              break;
-            }
-          }
-        }
-
-        // Update status Purchase Request
-        $purchaseRequest = PurchaseRequests::find($purchaseRequestId);
-        if ($purchaseRequest) {
-          $purchaseRequest->status = $allProcessed ? 'Terproses' : 'Sebagian Diproses';
-          $purchaseRequest->save();
-        }
-      }
-
-      // Menambahkan log
-      Logs::create([
-        'user_id' => Auth::user()->id,
-        'action' => 'accepted Purchase Order ' . $purchaseOrders->purchase_order_number . '.',
-      ]);
+      // Lanjutkan logika untuk memperbarui status Purchase Request...
 
       DB::commit();
 
@@ -823,6 +865,22 @@ class PurchaseOrdersController extends Controller
     } catch (\Exception $e) {
       DB::rollback();
       return redirect()->back()->with('swal-fail', 'Failed to accept Purchase Order: ' . $e->getMessage());
+    }
+  }
+
+  private function getExchangeRate($fromCurrency, $toCurrency, $date)
+  {
+    // Contoh API untuk mendapatkan kurs
+    $apiUrl = "https://api.frankfurter.app/{$date}?from={$fromCurrency}&to={$toCurrency}";
+
+    try {
+      $response = Http::get($apiUrl);
+      if ($response->successful() && isset($response['rates'][$toCurrency])) {
+        return $response['rates'][$toCurrency];
+      }
+      return null;
+    } catch (\Exception $e) {
+      return null;
     }
   }
 
@@ -952,20 +1010,41 @@ class PurchaseOrdersController extends Controller
     ]);
 
     try {
+      DB::beginTransaction();
+
       foreach ($request->quantities as $itemData) {
         $item = PurchaseOrderItems::findOrFail($itemData['poi_id']);
+        $po = PurchaseOrders::findOrFail($item->purchase_order_id); // Ambil data PO terkait
+
         $totalReceivedQuantity = ReceiptItems::where('purchase_order_item_id', $item->id)
           ->sum('received_quantity');
 
         // Jika quantity kurang dari total yang sudah diterima
         if ($itemData['quantity'] < $totalReceivedQuantity) {
-          return redirect()->back()->with('swal-fail', 'Quantity cannot less than received quantity');
+          return response()->json(['success' => false, 'message' => 'Quantity cannot be less than received quantity'], 400);
         }
 
         // Update quantity dan status
         $item->quantity = $itemData['quantity'];
         $item->status = ($totalReceivedQuantity >= $item->quantity) ? 'Selesai' : 'Belum Selesai';
         $item->save();
+
+        // **Update Expense Account Details**
+        $expenseDetail = ExpenseAccountDetails::where('purchase_order_item_id', $item->id)->first();
+
+        if ($expenseDetail) {
+          $newAmount = $item->quantity * $item->price;
+
+          // Jika currency PO bukan IDR, konversikan amount ke IDR
+          if ($po->currency !== 'IDR') {
+            $exchangeRate = $this->getExchangeRateFromAPI($po->currency, 'IDR', $po->purchase_date);
+            $newAmount *= $exchangeRate; // Konversi ke IDR
+          }
+
+          // Perbarui jumlah di expense_account_details
+          $expenseDetail->amount = $newAmount;
+          $expenseDetail->save();
+        }
       }
 
       // Update status Purchase Order jika semua item selesai
@@ -985,10 +1064,30 @@ class PurchaseOrdersController extends Controller
       }
       $PO->save();
 
+      DB::commit();
+
       // Kembalikan pesan sukses jika berhasil
       return response()->json(['success' => true]);
     } catch (\Exception $e) {
+      DB::rollback();
       return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+    }
+  }
+
+  private function getExchangeRateFromAPI($fromCurrency, $toCurrency, $date)
+  {
+    try {
+      $url = "https://api.frankfurter.app/{$date}?from={$fromCurrency}&to={$toCurrency}";
+      $response = file_get_contents($url);
+      $data = json_decode($response, true);
+
+      if (isset($data['rates'][$toCurrency])) {
+        return $data['rates'][$toCurrency];
+      }
+
+      throw new \Exception("Exchange rate for {$fromCurrency} to {$toCurrency} on {$date} not found.");
+    } catch (\Exception $e) {
+      throw new \Exception("Failed to fetch exchange rate: " . $e->getMessage());
     }
   }
 }
