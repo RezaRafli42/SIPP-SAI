@@ -90,21 +90,22 @@
                     </div>
                     <div class="modal-body">
                         <div class="table-responsive">
-                            <table class="display expandable-table table-striped" style="width:100%;" data-toggle="table"
-                                data-sortable="true">
+                            <table id="modalTable" class="table table-striped display expandable-table">
                                 <thead>
-                                    <tr class="text-center">
-                                        <th data-sortable="true">No</th>
-                                        <th data-sortable="true">PO No</th>
-                                        <th data-sortable="true">PMS Code</th>
-                                        <th data-sortable="true">Item Name</th>
-                                        <th data-sortable="true">Quantity</th>
-                                        <th data-sortable="true">Price</th>
-                                        <th data-sortable="true">Total</th>
-                                        <th data-sortable="true">Transaction Date</th>
+                                    <tr class="text-center user-select-none" role="button">
+                                        <th id="sortNo" data-sort="asc">No</th>
+                                        <th id="sortPO" data-sort="asc">PO Number</th>
+                                        <th id="sortCurrency" data-sort="asc">Currency</th>
+                                        <th id="sortPMS" data-sort="asc">PMS Code</th>
+                                        <th id="sortName" data-sort="asc">Item/Service Name</th>
+                                        <th id="sortQuantity" data-sort="asc">Quantity</th>
+                                        <th id="sortPrice" data-sort="asc">Price</th>
+                                        <th id="sortAmount" data-sort="asc">Amount</th>
+                                        <th id="sortDate" data-sort="asc">Transaction Date</th>
                                     </tr>
                                 </thead>
                                 <tbody>
+                                    <!-- Data akan dimasukkan di sini -->
                                 </tbody>
                             </table>
                         </div>
@@ -120,52 +121,115 @@
         {{-- Detail Expense Account Detail Modal --}}
         <script>
             $(document).ready(function() {
+                let modalData = []; // Variabel untuk menyimpan data asli
+
+                // Saat modal dibuka
                 $('#detailExpenseAccountSpendsModal').on('show.bs.modal', function(event) {
-                    var button = $(event.relatedTarget);
-                    var account = button.data('account');
-                    var tableBody = $('#detailExpenseAccountSpendsModal tbody');
-                    tableBody.empty();
+                    const button = $(event.relatedTarget);
+                    const account = button.data('account');
+
+                    // Ambil data dari server
                     $.ajax({
                         type: "get",
-                        url: "{{ url('get-detailAccountSpends') }}", // URL endpoint
+                        url: "{{ url('get-detailAccountSpends') }}",
                         data: {
-                            accountID: account.account_id // Kirim account ID
+                            accountID: account.account_id
                         },
                         success: function(response) {
-                            if (response.data.length > 0) {
-                                var no = 1;
-                                response.data.forEach(function(item, index) {
-                                    var row = `<tr class="text-center">
-                                        <td>${index + 1}</td>
-                                        <td>${item.purchase_order_number}</td>
-                                        <td>${item.pms_code}</td>
-                                        <td>${item.item_name}</td>
-                                        <td>${item.quantity}</td>
-                                        <td>${new Intl.NumberFormat('id-ID', { style: 'currency', currency: item.currency }).format(item.price)}</td>
-                                        <td>${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(item.amount)}</td>
-                                        <td>${new Date(item.transaction_date).toLocaleDateString('id-ID', {
-                                            day: '2-digit',
-                                            month: '2-digit',
-                                            year: 'numeric'
-                                        })}</td>
-                                    </tr>`;
-                                    tableBody.append(row);
-                                });
-                            } else {
-                                // Jika tidak ada data, tampilkan pesan
-                                tableBody.html(
-                                    '<tr><td colspan="8" class="text-center">No matching records found</td></tr>'
-                                );
-                            }
+                            modalData = response.data; // Simpan data asli
+                            populateTable(modalData); // Tampilkan data di tabel
                         },
-                        error: function() {
-                            // Tampilkan pesan error jika AJAX gagal
+                        error: function(xhr, status, error) {
+                            console.error('Error:', error);
                             alert('Error fetching data. Please try again.');
                         }
                     });
                 });
+
+                // Fungsi untuk menampilkan data di tabel
+                function populateTable(data) {
+                    const tableBody = $('#modalTable tbody');
+                    tableBody.empty();
+
+                    if (data.length > 0) {
+                        data.forEach((item, index) => {
+                            var formattedDate = new Date(item.transaction_date)
+                                .toLocaleDateString('id-ID', {
+                                    day: '2-digit',
+                                    month: '2-digit',
+                                    year: 'numeric',
+                                });
+
+                            const row = `<tr>
+                                <td>${index + 1}</td>
+                                <td>${item.purchase_order_number}</td>
+                                <td>${item.currency}</td>
+                                <td>${item.pms_code}</td>
+                                <td>${item.item_name}</td>
+                                <td>${item.quantity}</td>
+                                <td>${new Intl.NumberFormat('id-ID', { style: 'currency', currency: item.currency }).format(item.price)}</td>
+                                <td>${new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(item.amount)}</td>
+                                <td>${formattedDate}</td>
+                            </tr>`;
+                            tableBody.append(row);
+                        });
+                    } else {
+                        tableBody.html('<tr><td colspan="9" class="text-center">No matching records found</td></tr>');
+                    }
+                }
+
+                // Fungsi untuk menyortir data
+                function sortTable(column, order) {
+                    const sortedData = [...modalData]; // Salin data asli
+                    sortedData.sort((a, b) => {
+                        if (order === 'asc') {
+                            return a[column] > b[column] ? 1 : -1;
+                        } else {
+                            return a[column] < b[column] ? 1 : -1;
+                        }
+                    });
+                    populateTable(sortedData); // Tampilkan data yang telah disortir
+                }
+
+                // Event listener untuk header tabel
+                $('#sortPO').on('click', function() {
+                    const order = $(this).data('sort');
+                    sortTable('purchase_order_number', order);
+                    $(this).data('sort', order === 'asc' ? 'desc' : 'asc');
+                });
+
+                $('#sortCurrency').on('click', function() {
+                    const order = $(this).data('sort');
+                    sortTable('currency', order);
+                    $(this).data('sort', order === 'asc' ? 'desc' : 'asc');
+                });
+
+                $('#sortQuantity').on('click', function() {
+                    const order = $(this).data('sort');
+                    sortTable('quantity', order);
+                    $(this).data('sort', order === 'asc' ? 'desc' : 'asc');
+                });
+
+                $('#sortPrice').on('click', function() {
+                    const order = $(this).data('sort');
+                    sortTable('price', order);
+                    $(this).data('sort', order === 'asc' ? 'desc' : 'asc');
+                });
+
+                $('#sortAmount').on('click', function() {
+                    const order = $(this).data('sort');
+                    sortTable('amount', order);
+                    $(this).data('sort', order === 'asc' ? 'desc' : 'asc');
+                });
+
+                $('#sortDate').on('click', function() {
+                    const order = $(this).data('sort');
+                    sortTable('transaction_date', order);
+                    $(this).data('sort', order === 'asc' ? 'desc' : 'asc');
+                });
             });
         </script>
+
 
         {{-- Load Search Expense Account Details --}}
         <script>
