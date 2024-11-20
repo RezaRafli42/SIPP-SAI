@@ -181,15 +181,28 @@
                 // Fungsi untuk menyortir data
                 function sortTable(column, order) {
                     const sortedData = [...modalData]; // Salin data asli
+
                     sortedData.sort((a, b) => {
+                        let valA = a[column];
+                        let valB = b[column];
+
+                        // Jika kolom adalah "amount" atau "price", hapus format dan ubah ke angka
+                        if (column === 'amount' || column === 'price') {
+                            valA = parseFloat(valA.replace(/[^0-9.-]+/g, '')); // Hapus simbol mata uang
+                            valB = parseFloat(valB.replace(/[^0-9.-]+/g, '')); // Hapus simbol mata uang
+                        }
+
                         if (order === 'asc') {
-                            return a[column] > b[column] ? 1 : -1;
+                            return valA > valB ? 1 : -1;
                         } else {
-                            return a[column] < b[column] ? 1 : -1;
+                            return valA < valB ? 1 : -1;
                         }
                     });
+
                     populateTable(sortedData); // Tampilkan data yang telah disortir
                 }
+
+
 
                 // Event listener untuk header tabel
                 $('#sortPO').on('click', function() {
@@ -229,7 +242,6 @@
                 });
             });
         </script>
-
 
         {{-- Load Search Expense Account Details --}}
         <script>
